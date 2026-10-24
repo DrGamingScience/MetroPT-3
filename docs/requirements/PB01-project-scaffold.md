@@ -32,7 +32,7 @@ Thiết lập package, CLI khung, cấu hình và hợp đồng dữ liệu gi�
 ## Yêu cầu chức năng
 
 - **PB01-FR01:** Tổ chức source layout ngay tại root repo; lệnh `python -m metropt3.cli --help` hoạt động sau khi cài package trong môi trường riêng.
-- **PB01-FR02:** Config chứa nhóm dataset/split/features/quality/ecod/selection/alerts/reproducibility; ranh giới split tăng dần, W và stride dương, quantile trong (0,1), batch size nguyên dương.
+- **PB01-FR02:** Config chứa nhóm dataset/split/features/quality/ecod/selection/alerts/reproducibility; ranh giới split tăng dần, W và stride dương, quantile trong (0,1), batch size nguyên dương. Seed và từng stability seed là số nguyên trong 0..4294967295; timestamp sai có/không có dấu nháy đều báo trường và lý do.
 - **PB01-FR03:** Config mẫu phản ánh pipeline: W=5, stride=60 giây, W ứng viên 1/5/15, warm-up=930 giây, seed=42, gộp=300 giây và timezone=null.
 - **PB01-FR04:** Định nghĩa cách tạo run_id, canonical config hash, manifest và schema version; ghi quan hệ artifact cha/con và quy tắc không ghi đè run đã hoàn tất.
 - **PB01-FR05:** Khai báo dependencies; PyOD là tùy chọn. Ignore môi trường/raw/artifact lớn; lệnh chưa có logic phải báo chưa hỗ trợ hoặc không đăng ký, không trả kết quả giả.
@@ -75,7 +75,7 @@ Ngày triển khai và kiểm tra: 2026-10-24. Branch `chore/pb01-project-scaffo
 | AC | Bằng chứng | Kết quả |
 | --- | --- | --- |
 | AC01 | Cài editable `.[dev]` vào `.venv` mới, Python 3.13.9; import đủ dependencies; help/check-config từ CLI. | Đạt. Config mẫu W=5, stride=60, warm-up=930, seed=42, merge=300. |
-| AC02 | `tests/test_config.py` và `tests/test_cli.py`: W=0, q=0/1, split bằng/đảo, sai kiểu, thiếu/lạ/trùng key, NaN/inf. | Đạt. Lỗi có tên trường, CLI exit 2, không tạo run. |
+| AC02 | `tests/test_config.py` và `tests/test_cli.py`: W=0, q=0/1, split bằng/đảo, sai kiểu, thiếu/lạ/trùng key, NaN/inf; ngày/giờ không tồn tại có/không dấu nháy và seed ngoài miền. | Đạt sau sửa audit. Lỗi có tên trường, CLI exit 2, không traceback hoặc tạo run; seed 0/4294967295 được nhận. |
 | AC03 | Test đổi thứ tự khóa/comment, timestamp/số tương đương, seed khác và di chuyển repo. | Đạt. Hash ổn định cho config tương đương, đổi khi seed đổi; resolved paths không phụ thuộc cwd. |
 | AC04 | Test gọi các stage chưa có; kiểm tra `git check-ignore` cho `.venv`, raw/interim/processed, artifacts/reports và egg-info. | Đạt. Stage chưa có exit 2; dữ liệu/đầu ra lớn được ignore. |
 
@@ -89,7 +89,15 @@ Lệnh xác minh từ root repo:
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-Kết quả: **63 passed**; pip check không có dependency lỗi. Config hash mẫu: `5682fdfd2397ea08bf85dd24e85921b3693b9b33012c16ffe561002b991a881b`.
+Kết quả ban đầu tại commit `15d66d0`: **63 passed**; pip check không có dependency lỗi. Sau sửa hai phát hiện audit: **84 passed** trong `.venv` hiện có. Config hash mẫu vẫn là `5682fdfd2397ea08bf85dd24e85921b3693b9b33012c16ffe561002b991a881b`.
+
+Lượt kiểm tra audit dùng lệnh dưới với thư mục tạm riêng trong workspace, vì môi trường hạn chế không truy cập được thư mục pytest tạm cũ:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --basetemp artifacts/pb01-audit-green-20261024-01
+```
+
+Test hồi quy đã tái hiện trước khi sửa: 4 trường hợp timestamp unquoted trả mã 1 và 2 trường hợp seed quá lớn trả mã 0. Đã sửa loader riêng để giữ timestamp thành scalar text tới `_timestamp`, giữ lý do lỗi ngày/giờ và thêm `_seed` cho cả hai trường seed. Các test mới còn xác nhận timestamp quoted/unquoted hợp lệ có cùng hash và hai biên seed hợp lệ được nhận. Thay đổi audit đang ở working tree để review, chưa tạo commit mới; trạng thái PB01 vẫn In review.
 
 Tệp triển khai: [pyproject](../../pyproject.toml), [config mẫu](../../configs/base.yaml), [config loader](../../src/metropt3/config.py), [CLI](../../src/metropt3/cli.py), [tests config](../../tests/test_config.py), [tests CLI](../../tests/test_cli.py), [hợp đồng artifact](../artifact_contracts.md).
 

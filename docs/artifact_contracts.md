@@ -8,6 +8,8 @@ PB01 triển khai nạp/kiểm tra config và canonical config hash. Tài liệu
 
 Các mốc split dùng đồng hồ gốc không offset; chỉ được khai báo ở PB01, việc chia dữ liệu thuộc PB05. Warm-up phải ít nhất bằng cửa sổ ứng viên lớn nhất cộng tuổi forward fill tối đa. `window_minutes` phải có trong `candidate_windows`.
 
+YAML timestamp được giữ dưới dạng chuỗi để validator của từng trường kiểm tra ngày/giờ. Giá trị sai có hoặc không có dấu nháy đều phải báo tên trường và lý do, CLI trả mã 2 thay vì traceback. Cả `reproducibility.seed` và từng phần tử `stability_seeds` phải là số nguyên trong `0..4294967295`, phù hợp miền seed RandomState dùng bởi Isolation Forest.
+
 `paths.project_root` giải từ thư mục chứa YAML. Các đường dẫn còn lại giải từ project_root, không phụ thuộc thư mục đang chạy lệnh. Với `configs/base.yaml` hiện tại, `project_root: ".."` trỏ root repo. Đường dẫn tuyệt đối được cho phép khi cố ý đặt dữ liệu ngoài repo. Đọc/kiểm tra config không tạo thư mục hoặc ghi kết quả.
 
 | Trường | Mặc định | Dùng để lưu |

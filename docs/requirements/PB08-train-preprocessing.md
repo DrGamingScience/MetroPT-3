@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P0 |
-| Quy mô | M — tương đối, chưa quy đổi ngày |
 | Mốc | M2 |
-| Branch | `feat/pb08-train-preprocessing` |
 | Phụ thuộc | [PB07](PB07-causal-window-features.md) |
 | Nguồn | Backlog PB08; pipeline chương 7 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -19,7 +17,7 @@ Người chạy các detector cần một hợp đồng feature cố định và
 
 ## Phạm vi và ranh giới
 
-Chọn cột, kiểm tra schema và xử lý thiếu theo config. Giữ đơn vị gốc cho detector; scaler/PCA phục vụ Data Mining nằm ở PB17.
+Chọn cột, kiểm tra input hữu hạn và dùng complete-case mặc định. Median imputer chỉ bổ sung nếu dữ liệu thực tế cần, có kết quả đối chiếu. Giữ đơn vị gốc cho detector; scaler/PCA phục vụ Data Mining nằm ở PB17.
 
 ## Đầu vào và đầu ra
 
@@ -32,10 +30,10 @@ Chọn cột, kiểm tra schema và xử lý thiếu theo config. Giữ đơn v�
 ## Yêu cầu chức năng
 
 - **PB08-FR01:** Fit cột và thống kê chỉ trên train reference; từ chối train rỗng hoặc không còn feature sau lọc, báo rõ dataset/config liên quan.
-- **PB08-FR02:** Loại cột hằng và hoàn toàn missing trên train; lưu tên/lý do/giá trị hằng. Khi cột hằng đổi ở dữ liệu mới, phát cờ chất lượng riêng, không thêm nó lại vào detector.
-- **PB08-FR03:** Mặc định complete-case; nếu bật median imputer thì fit median train, giữ số mốc đã điền và xuất đối chiếu complete-case. Cột toàn missing không lấy median từ split khác.
+- **PB08-FR02:** Loại cột hằng và hoàn toàn missing trên train; ghi tên/lý do/giá trị hằng cùng preprocessing. Nếu chúng đổi ở dữ liệu mới thì ghi nhận trong phân tích chất lượng khi cần, không thêm lại vào detector hoặc xây hệ thống drift monitoring.
+- **PB08-FR03:** Mặc định complete-case. Chưa triển khai nhiều chế độ impute. Nếu quan sát thực tế đòi hỏi median imputer, fit chỉ trên train, ghi số mốc điền và đối chiếu với complete-case; cột toàn missing không lấy median split khác.
 - **PB08-FR04:** Transform validation/test dùng nguyên schema train; kiểm tra tên, thiếu/thừa cột, thứ tự và số chiều, không âm thầm sắp xếp hoặc lọc cột mới.
-- **PB08-FR05:** Không scale benchmark MAD/IF/ECOD mặc định; trước model phải finite. Artifact có phiên bản, schema hash và save/load giữ nguyên trạng thái.
+- **PB08-FR05:** Không scale benchmark MAD/IF/ECOD mặc định; trước model phải finite. Lưu cột/thứ tự và thống kê cùng preprocessing; save/load giữ nguyên trạng thái, không cần schema hash riêng.
 
 ## Yêu cầu chất lượng và xử lý trường hợp biên
 
@@ -44,29 +42,16 @@ Chọn cột, kiểm tra schema và xử lý thiếu theo config. Giữ đơn v�
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB08-AC01** (FR01, FR02): **Khi** train có một cột hằng, một cột toàn thiếu và một cột biến thiên, **thì** chỉ giữ cột biến thiên, artifact ghi đúng lý do; dữ liệu mới đổi cột hằng có flag riêng.
-- [ ] **PB08-AC02** (FR01, FR03): **Khi** thay phân phối validation/test, **thì** cột giữ/bỏ và median train không đổi.
+- [ ] **PB08-AC01:** **Khi** train có cột hằng, toàn thiếu và biến thiên, **thì** chỉ giữ cột biến thiên, ghi lý do; danh sách cột không tự đổi trên validation/test.
+- [ ] **PB08-AC02:** **Khi** thay phân phối validation/test, **thì** cột giữ/bỏ và mọi thống kê train không đổi; kiểm tra median nếu có imputer.
 - [ ] **PB08-AC03** (FR04, FR05): **Khi** đảo thứ tự/thiếu/thừa feature hoặc còn infinity, **thì** transform từ chối rõ lý do trước khi score.
-- [ ] **PB08-AC04** (FR03, FR05): **Khi** save/load preprocessing đã fit và transform cùng dữ liệu, **thì** ma trận và schema tương đương trong dung sai; số mốc impute được công bố.
-
-## Checklist triển khai
-
-- [ ] Triển khai `preprocess.py`, tạo train reference hợp lệ trước khi fit.
-- [ ] Loại cột hằng/hoàn toàn thiếu trên train; lưu danh sách, giá trị hằng và cờ chất lượng nếu chúng thay đổi về sau.
-- [ ] Mặc định dùng complete-case. Nếu bật median imputer, fit train, ghi số mốc đã điền và đối chiếu complete-case.
-- [ ] Giữ đơn vị gốc cho ba detector; kiểm tra finite, đúng tên và thứ tự cột. Nhánh scale cho PCA/K-Means tách riêng.
+- [ ] **PB08-AC04:** **Khi** save/load preprocessing và transform cùng input, **thì** ma trận/cột tương đương; nếu dùng imputer thì công bố số mốc điền.
 
 ## Rủi ro và quyết định cần ghi nhận
 
 - Lọc cột hằng theo từng split sẽ làm đổi model input: khóa danh sách tại fit.
 - Impute có thể che thiếu quan sát: chất lượng/coverage gốc phải còn nguyên.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
 - [ ] Đính kèm preprocessing artifact metadata, danh sách cột loại và kiểm tra fit-on-train/schema/save-load.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.

@@ -13,6 +13,10 @@
 
 Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
 
+## Phạm vi sau rà soát 2026-10-24
+
+Giữ implementation và bằng chứng đã có; không yêu cầu viết lại config/ingest. Các quy ước run/manifest cho bước ML tương lai theo [quy ước đầu ra đã tinh gọn](../artifact_contracts.md); ghi chú triển khai phía dưới là lịch sử. Không mở rộng chống sửa metadata, cạnh tranh nhiều tiến trình hoặc log nếu không có lỗi ảnh hưởng công việc thực tế.
+
 ## Mục tiêu và nhu cầu
 
 Người triển khai cần cài và chạy dự án theo một cách thống nhất để các PB sau dùng chung config, schema và quy ước lưu kết quả.
@@ -34,7 +38,7 @@ Thiết lập package, CLI khung, cấu hình và hợp đồng dữ liệu gi�
 - **PB01-FR01:** Tổ chức source layout ngay tại root repo; lệnh `python -m metropt3.cli --help` hoạt động sau khi cài package trong môi trường riêng.
 - **PB01-FR02:** Config chứa nhóm dataset/split/features/quality/ecod/selection/alerts/reproducibility; ranh giới split tăng dần, W và stride dương, quantile trong (0,1), batch size nguyên dương. Seed và từng stability seed là số nguyên trong 0..4294967295; timestamp sai có/không có dấu nháy đều báo trường và lý do.
 - **PB01-FR03:** Config mẫu phản ánh pipeline: W=5, stride=60 giây, W ứng viên 1/5/15, warm-up=930 giây, seed=42, gộp=300 giây và timezone=null.
-- **PB01-FR04:** Định nghĩa cách tạo run_id, canonical config hash, manifest và schema version; ghi quan hệ artifact cha/con và quy tắc không ghi đè run đã hoàn tất.
+- **PB01-FR04:** Giữ canonical config hash đã triển khai. Quy ước lưu kết quả ML theo [đầu ra tối thiểu](../artifact_contracts.md): thư mục rõ tên, config/model/kết quả tương ứng; không yêu cầu run ID theo hash hoặc quan hệ artifact cha/con.
 - **PB01-FR05:** Khai báo dependencies; PyOD là tùy chọn. Ignore môi trường/raw/artifact lớn; lệnh chưa có logic phải báo chưa hỗ trợ hoặc không đăng ký, không trả kết quả giả.
 
 ## Yêu cầu chất lượng và xử lý trường hợp biên

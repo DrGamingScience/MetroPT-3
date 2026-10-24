@@ -13,6 +13,10 @@
 
 Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
 
+## Phạm vi sau rà soát 2026-10-24
+
+Giữ implementation và bằng chứng đã có; không yêu cầu viết lại config/ingest. Các quy ước run/manifest cho bước ML tương lai theo [quy ước đầu ra đã tinh gọn](../artifact_contracts.md); ghi chú triển khai phía dưới là lịch sử. Không mở rộng chống sửa metadata, cạnh tranh nhiều tiến trình hoặc log nếu không có lỗi ảnh hưởng công việc thực tế.
+
 ## Mục tiêu và nhu cầu
 
 Người chạy thí nghiệm cần biết chính xác dữ liệu gốc nào tạo ra kết quả, đồng thời có thể nhập lại cùng nguồn mà không làm thay đổi raw.

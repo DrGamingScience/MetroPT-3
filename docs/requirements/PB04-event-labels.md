@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P0 |
-| Quy mô | S — tương đối, chưa quy đổi ngày |
 | Mốc | M1 |
-| Branch | `feat/pb04-event-labels` |
 | Phụ thuộc | [PB02](PB02-data-ingestion.md) |
 | Nguồn | Backlog PB04; pipeline chương 3–4 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -27,7 +25,7 @@ Chuẩn hóa E1–E4 và logic nhãn/giao khoảng. Không tự đổi ngày s�
 | --- | --- | --- |
 | Đầu vào | Nguồn sự cố và quy ước timestamp | Dùng cùng đồng hồ gốc với cảm biến; bảo lưu ghi chú gốc. |
 | Đầu ra | events.csv | event_id/start/end/failure_type/source/source_note/confidence_note. |
-| Bàn giao | Hàm label_at và source_intersects_event | PB05/PB07 lọc reference; PB10/PB11 ghép và đánh giá. |
+| Bàn giao | Logic nhãn tại mốc và kiểm tra nguồn giao sự cố | PB05/PB07 lọc reference; PB10/PB11 ghép và đánh giá. |
 
 ## Yêu cầu chức năng
 
@@ -49,24 +47,11 @@ Chuẩn hóa E1–E4 và logic nhãn/giao khoảng. Không tự đổi ngày s�
 - [ ] **PB04-AC03** (FR04): **Khi** giá trị được fill có timestamp gốc nằm trong sự cố ngoài biên danh nghĩa cửa sổ, **thì** vẫn phát hiện giao nguồn với sự cố.
 - [ ] **PB04-AC04** (FR02, FR05): **Khi** nguồn có ghi chú bảo trì lệch tháng, **thì** mốc chuẩn không tự đổi; ghi chú được lưu và feature không chứa nhãn.
 
-## Checklist triển khai
-
-- [ ] Tạo `events.py` và `events.csv` có `event_id`, `start`, `end`, `failure_type`, `source`, `source_note`, `confidence_note`.
-- [ ] Lưu E1: 18/04/2020 00:00–23:59; E2: 29/05/2020 23:30–30/05/2020 06:00; E3: 05/06/2020 10:00–07/06/2020 14:30; E4: 15/07/2020 14:30–19:00.
-- [ ] Khoảng sự cố đóng hai đầu, giây 00 khi nguồn chỉ ghi đến phút; nhãn tại `window_end`. Lưu ghi chú nguồn mâu thuẫn thay vì tự dịch mốc.
-- [ ] Tách hàm gán nhãn tại thời điểm kết thúc và hàm kiểm tra nguồn dữ liệu cửa sổ có giao sự cố; hàm thứ hai sẽ nhận cả provenance forward fill từ PB07.
-
 ## Rủi ro và quyết định cần ghi nhận
 
 - Nhầm end ghi 23:59 thành 23:59:59 sẽ đổi nhãn: giữ giây=00 theo đặc tả.
-- Dùng nhãn pointwise để lọc reference bỏ sót phần đuôi cửa sổ sau sự cố: dùng source provenance.
+- Dùng nhãn pointwise để lọc reference bỏ sót phần đuôi cửa sổ sau sự cố: kiểm tra nguồn thực dùng trong lúc tạo feature. Không cần xuất danh sách nguồn riêng cho từng cửa sổ.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
 - [ ] Đính kèm events.csv, nguồn/ghi chú và các test biên sự cố, đặc biệt cửa sổ còn giao sau end.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.

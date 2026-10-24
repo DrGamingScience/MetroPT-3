@@ -5,13 +5,13 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P1 |
-| Quy mô | M — tương đối, chưa quy đổi ngày |
 | Mốc | M5 — replay P1 |
-| Branch | `feat/pb20-causal-replay` |
 | Phụ thuộc | [PB19](PB19-frozen-test-benchmark.md) |
 | Nguồn | Backlog PB20; pipeline chương 11 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
+
+**Phạm vi hiện tại: Deferred.** Chỉ triển khai khi có câu hỏi hoặc nhu cầu cụ thể; các yêu cầu dưới đây áp dụng nếu mở lại mục này.
 
 ## Mục tiêu và nhu cầu
 
@@ -45,27 +45,15 @@ Replay timestamp có thứ tự bằng model đã khóa. Cơ chế nhận dữ l
 ## Tiêu chí nghiệm thu
 
 - [ ] **PB20-AC01** (FR01, FR03, FR05): **Khi** replay fixture có thiếu mẫu, gap và biên split, **thì** grid/mask/reason/alarm/episode khớp batch.
-- [ ] **PB20-AC02** (FR01, FR02, FR05): **Khi** đối chiếu score replay và batch, **thì** sai lệch trong dung sai model đã công bố; reference checksum không đổi.
+- [ ] **PB20-AC02** (FR01, FR02, FR05): **Khi** đối chiếu score replay và batch, **thì** sai lệch trong dung sai model đã công bố; reference không đổi khi so trạng thái trong test.
 - [ ] **PB20-AC03** (FR01, FR04): **Khi** thêm dữ liệu tương lai sau mốc đã phát alarm, **thì** score/alarm quá khứ không đổi.
 - [ ] **PB20-AC04** (FR04): **Khi** đưa bản ghi cũ vào sau mốc đã xử lý, **thì** hành vi đúng policy đã ghi, không âm thầm sửa kết quả đã công bố.
-
-## Checklist triển khai
-
-- [ ] Triển khai buffer W + giới hạn fill, đưa bản ghi vào theo timestamp, chấm mỗi phút bằng preprocessing/model/tau đã khóa.
-- [ ] Reset buffer/fill/episode theo cùng split/gap/invalid policy; giữ model_version và reason chất lượng.
-- [ ] Đối chiếu replay với đầu ra batch offline; API hoặc dữ liệu đến muộn thực tế là phạm vi triển khai tiếp theo, chưa cần để nghiệm thu replay của đồ án.
 
 ## Rủi ro và quyết định cần ghi nhận
 
 - Cách offline resample nhìn cả file có thể lén dùng tương lai: kiểm tra cùng fixture sửa tương lai.
 - Reset thiếu một trạng thái như fill/episode khiến replay khác batch: kiểm tra từng loại biên.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
 - [ ] Cung cấp lệnh replay, bảng đối chiếu từng mốc và test buffer/gap/future invariance.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.

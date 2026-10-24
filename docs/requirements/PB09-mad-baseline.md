@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P0 |
-| Quy mô | S — tương đối, chưa quy đổi ngày |
 | Mốc | M2 |
-| Branch | `feat/pb09-mad-baseline` |
 | Phụ thuộc | [PB08](PB08-train-preprocessing.md) |
 | Nguồn | Backlog PB09; pipeline chương 7 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -49,23 +47,11 @@ Fit, score, lưu/nạp và giải thích MAD trên feature liên tục; threshol
 - [ ] **PB09-AC03** (FR03, FR04): **Khi** hai feature có cùng độ lệch cực đại, **thì** score đúng và giải thích tuân quy tắc tie đã lưu.
 - [ ] **PB09-AC04** (FR05): **Khi** lưu/nạp model hoặc thay dữ liệu tương lai, **thì** score trên input cố định giữ nguyên; gọi score trước fit bị từ chối.
 
-## Checklist triển khai
-
-- [ ] Triển khai `models/mad.py` với median, MAD và sàn theo train; score là max độ lệch chuẩn hóa.
-- [ ] Sàn là `max(1e-6, 0.01 × (P99-P1))`; dùng range train khi khoảng phân vị bằng 0 ở cột không hằng. Không nhân hệ số 1.4826.
-- [ ] Lưu trạng thái model, feature names/version và thông tin feature đạt max cho giải thích.
-
 ## Rủi ro và quyết định cần ghi nhận
 
 - MAD=0 xuất hiện nhiều ở tín hiệu ổn định: công bố số cột dùng floor và để dành sensitivity có ghi config.
 - Sai hệ số scale làm thang điểm khác đặc tả: test công thức trực tiếp.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
 - [ ] Cung cấp phép tính tay, metadata median/MAD/floor và ví dụ feature giải thích cho một cửa sổ.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.

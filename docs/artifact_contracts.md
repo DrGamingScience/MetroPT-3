@@ -1,6 +1,6 @@
-# Hợp đồng cấu hình và artifact MetroPT-3
+# Cấu hình và đầu ra tối thiểu MetroPT-3
 
-PB01 triển khai nạp/kiểm tra config và canonical config hash. Tài liệu này quy định hợp đồng cho các stage sẽ được triển khai trong PB02–PB22; chưa có stage huấn luyện, tạo run, freeze hoặc test benchmark ở PB01.
+Rà soát **2026-10-24**: giữ hợp đồng config/raw đã triển khai; thay kế hoạch manifest theo stage bằng cách lưu kết quả gọn cho đồ án ML. Phần thí nghiệm bên dưới là yêu cầu cho bước chưa triển khai, không mô tả tính năng CLI đã có. Xem [phạm vi](requirements/README.md) và [backlog](product_backlog.md).
 
 ## Cấu hình và đường dẫn
 
@@ -26,36 +26,7 @@ YAML timestamp được giữ dưới dạng chuỗi để validator của từn
 
 Đổi thứ tự khóa hoặc comment YAML không đổi hash; thay seed/W/tham số có ý nghĩa làm hash đổi. Thứ tự phần tử list được giữ. Đường dẫn source và đường dẫn tuyệt đối được giải lúc chạy không tự thêm vào canonical config, nên di chuyển nguyên repo không đổi hash. Nếu người dùng ghi đường dẫn tuyệt đối trực tiếp trong YAML thì giá trị đó là một phần config hash.
 
-Config hash không thay thế code hash, data hash hoặc model hash. Cache chỉ hợp lệ khi toàn bộ các hash đầu vào liên quan khớp.
-
-## Run ID và tính bất biến
-
-Khi bổ sung bộ tạo run ở PB12, dùng định dạng `YYYYMMDDTHHMMSSffffffZ-<config_hash_12>-<uuid_8>`, trong đó thời gian UTC chỉ định danh lần chạy, không chuyển múi giờ timestamp cảm biến. UUID tránh va chạm cho hai lần chạy cùng thời điểm/config.
-
-- Mỗi run có `artifacts/<run_id>/` và `reports/<run_id>/`; tạo thư mục theo chế độ độc quyền, không ghi đè run đã có.
-- Lưu canonical config thành `config.snapshot.json`, cùng hash đầy đủ trong run manifest. Thư mục ví dụ trong tài liệu không phải kết quả thí nghiệm thật.
-- Các trạng thái stage gồm `created`, `running`, `completed`, `failed`; chỉ completed mới được downstream sử dụng. Ghi tệp tạm rồi hoàn tất manifest sau khi xác minh output.
-- Run completed bất biến. Thay W, feature_set, model/config hoặc chạy lại tạo run_id mới; không sửa artifact hoàn tất tại chỗ.
-- Raw dùng checksum làm phiên bản dữ liệu. File dùng chung được tham chiếu bằng đường dẫn + SHA-256, không cần nhân bản vào mỗi run.
-
-## Phiên bản và manifest
-
-Config, manifest và từng loại artifact có schema version riêng, khởi đầu là 1 khi stage đó triển khai. Version không hỗ trợ phải bị từ chối. Thay đổi cách hiểu trường/công thức/cột tăng version và ghi trong manifest; không tái sử dụng cache khác schema.
-
-`run_manifest.json` cần các trường sau khi có runner PB12:
-
-| Trường | Nội dung |
-| --- | --- |
-| `schema_version`, `run_id`, `stage`, `status` | Phiên bản hợp đồng, định danh và trạng thái thực tế. |
-| `config_hash`, `config_snapshot` | SHA-256 và đường dẫn config đã dùng. |
-| `code` | Git commit, cờ working tree dirty và SHA-256 snapshot source/config liên quan; commit đơn lẻ không đủ khi có thay đổi chưa commit. |
-| `dataset` | Dataset version, raw manifest và raw SHA-256. |
-| `parents` | Danh sách artifact đầu vào với đường dẫn, SHA-256 và schema version. |
-| `outputs` | Danh sách artifact đầu ra với loại, đường dẫn, SHA-256 và schema version. |
-| `seed`, `environment` | Python, library versions, OS, CPU, RAM, số luồng. |
-| `started_at`, `finished_at`, `timing`, `resources` | Thời điểm/thời gian/tài nguyên đã đo; thiếu thì null với lý do. |
-
-SHA-256 luôn tính từ byte file thực tế sau khi ghi. Đường dẫn artifact trong manifest giải từ thư mục chứa manifest; tham chiếu raw dùng chung có thể đi ra ngoài thư mục run. Downstream kiểm tra file tồn tại, schema, completed status và checksum trước khi dùng.
+Config hash đã có được giữ để nhận diện cấu hình. Không yêu cầu thêm hash cho mọi bảng/mask/model hoặc cache xuyên run. Cấu hình thực dùng vẫn phải được lưu để đọc và chạy lại.
 
 ## Raw manifest PB02
 
@@ -82,23 +53,51 @@ CSV phải có đúng `timestamp`, 15 sensor đúng chính tả và một index 
 
 PDF được kiểm tra signature `%PDF-` và marker `%%EOF`, không phân tích ngữ nghĩa nội dung. ZIP phải có đúng một CSV và một PDF; từ chối tên đường dẫn thoát thư mục hoặc symlink. CRC kiểm tra toàn bộ thành viên trước khi xuất version.
 
-## Quan hệ giữa các stage
+## Một thư mục cho một bộ thí nghiệm
 
-| Stage hoặc PB | Đầu vào chính | Đầu ra cần có |
+Một lần so sánh có thể chứa nhiều model/W/seed. Dùng tên thư mục dễ đọc (ví dụ `artifacts/validation-20261024/`), phân biệt cấu hình bằng `config_id` ngắn và tham số thực tế trong bảng kết quả. Không bắt buộc UUID, run ID theo hash hay một run cho mỗi hàm. Báo lỗi nếu tên đích đã có để tránh ghi đè nhầm kết quả đã báo cáo.
+
+Một script gọi tuần tự các hàm; khi lỗi thì dừng, không ghi bảng tổng kết như thành công. Ghi bảng kết quả cuối sau khi tính xong. Không cần state machine từng stage, manifest cha/con, tự động resume, registry hay cơ chế publish nhiều tầng.
+
+## Các đầu ra cần giữ
+
+| Phần | Nội dung tối thiểu | Có thể tổ chức gọn như sau |
 | --- | --- | --- |
-| Ingest PB02 | Gói UCI/local | Raw CSV/PDF, `raw_manifest.json`. |
-| Audit/events PB03–PB04 | Raw đã xác minh và nguồn sự cố | Cleaned rows, quality report, data card, `events.csv`, fitted cadence. |
-| Split/features PB05–PB07 | Cleaned/events/config | `splits.json`, masks, features, `feature_schema.json`, source provenance. |
-| Preprocess/train PB08–PB14 | Train reference và schema | `preprocess.joblib`, model artifact/metadata. |
-| Validate PB12/PB15/PB18 | Train-fitted artifacts + validation | Scores, `validation_results.csv`, comparison masks, quyết định lựa chọn. |
-| Freeze PB18 | Kết quả lựa chọn + model/schema | `frozen_config.json` và hash toàn bộ artifacts đã chọn. |
-| Test PB19 | Frozen bundle hợp lệ + test | `scores.parquet`, `episodes.csv`, `metrics.json`, bảng tổng hợp/từng sự cố. |
-| Report PB21 | Completed metrics/scores/cases | Report/biểu đồ/bảng có run_id, split, đơn vị và nguồn dữ liệu. |
+| Raw | CSV/PDF gốc, nguồn và checksum | Giữ `data/raw/<version>/raw_manifest.json` hiện tại. |
+| Chuẩn bị | Cleaned rows với raw_row_id/segment; bảng 4 sự cố; thống kê chất lượng/nhịp/split | `cleaned.parquet`, `events.csv`, một `data_card.md`. Bảng dòng lỗi/gap riêng chỉ khi cần xem chi tiết. |
+| Feature | Feature names/order/công thức; W/biên; mọi mốc với split/valid/reason/reference | `features.parquet` chứa cả cột metadata/mask; thông tin cột/công thức trong metadata dùng chung hoặc `feature_schema.json` gọn. |
+| Thí nghiệm | Config hiệu dụng, raw version/checksum, code, seed và phiên bản môi trường | Một `run_manifest.json` gọn cho cả bộ thí nghiệm, kèm config snapshot/lockfile hoặc đường dẫn tới chúng. |
+| Validation | Model/W/tham số/seed, common mask policy, số mốc, coverage, metric, q/tau, timing | `validation_results.csv`; score được giữ trong bộ nhớ khi quét q. Lưu score ra file nếu dùng cho hình/báo cáo hoặc đọc lại có chủ đích. |
+| Model chọn | Preprocessing/cột đã fit, model và các tham số | Joblib hoặc định dạng phù hợp, cùng thư mục với cấu hình đã chọn. Không buộc giữ model của mọi cấu hình bị loại. |
+| Chốt trước test | Cấu hình/ngưỡng/feature policy và đường dẫn đúng model đã chọn | Một `frozen_config.json` cho các detector/seed đã chọn, kèm lý do chọn ngắn hoặc tham chiếu dòng validation. |
+| Đánh giá | Mọi mốc score/valid/reason/alarm; episode; metric tổng hợp và từng sự cố | `scores.parquet`, `episodes.csv`, bảng summary/events; `metrics.json` chỉ khi hữu ích cho chương trình đọc. Không sao chép cùng số liệu sang nhiều định dạng bắt buộc. |
+| Diễn giải | EDA, hình/bảng kết quả, case study, giới hạn | Notebook hoặc Markdown và ảnh; không cần sample/case manifest riêng. |
 
-Feature schema lưu cột/thứ tự/công thức/đơn vị/W/biên/version. Scores giữ mọi mốc dự kiến với timestamp, split, segment, valid, reason, score, threshold, alarm, model_version; invalid có score/alarm null. Metric lưu số đếm, mẫu số, mask_id, coverage và lý do N/A; JSON dùng null thay cho NaN/Infinity.
+Các tên file gợi ý cho phần chưa triển khai có thể gộp; nội dung cần thiết và mối liên hệ giữa cấu hình/model/kết quả phải rõ. Nhãn không nằm trong ma trận feature đưa vào detector. Metadata có thể đi cùng bảng để join theo timestamp, không dựa vào thứ tự dòng ngầm định.
 
-Test stage phải từ chối khi thiếu frozen config hoặc artifact hash sai. Không refit train+validation sau calibration. Model và feature schema không nhận nhãn test; ghép nhãn sau score.
+## Metadata đủ để chạy lại
 
-## Tài liệu kỹ thuật tham khảo
+`run_manifest.json` chỉ cần thông tin dùng được: raw manifest/version và CSV checksum; config thực dùng (hoặc snapshot); seed; Git commit; phiên bản Python/dependencies (hoặc lockfile); tên cấu hình và đường dẫn kết quả. Config hash hiện có có thể ghi thêm. Ghi một lần cho cả bộ thí nghiệm, không lặp ở mỗi cửa sổ hay stage.
 
-Khai báo package theo [Python Packaging User Guide](https://packaging.python.org/en/latest/guides/writing-pyproject-toml/), CLI dùng [argparse](https://docs.python.org/3.13/library/argparse.html), YAML dùng SafeLoader theo [PyYAML](https://pyyaml.org/wiki/PyYAMLDocumentation) và bổ sung kiểm tra trùng khóa.
+Với kết quả cuối, chạy trên source đã commit để commit nhận diện đúng code. Khi thử nghiệm còn thay đổi chưa commit, ghi `dirty: true`; chưa gọi đó là bản tái lập cuối. Không cần cơ chế tự snapshot/hash toàn bộ source. Timing fit/score nằm trong bảng thí nghiệm; ghi máy và n_jobs một lần khi so tốc độ. Không bắt buộc thu CPU/RAM sử dụng, telemetry hoặc lý do null cho mọi thông số chưa đo.
+
+## Chốt lựa chọn và dùng test
+
+`frozen_config.json` ghi feature_set/W, cột/thứ tự đã giữ, đường dẫn preprocessing/model, seed, q/tau, split/quality/reference/merge policy và raw version. Đây là bản ghi quyết định trước test; không phải hệ thống khóa file hoặc approval workflow.
+
+Khi chạy test, nạp chính các model/preprocessing đã chọn; kiểm tra file tồn tại, tên/thứ tự cột, tham số/seed tương ứng và tau hữu hạn. Nếu thiếu/sai đầu vào thì dừng rõ lý do. Không tự tìm model mới nhất, tự fit lại hoặc tự hiệu chỉnh ngưỡng. Không cần checksum chuỗi artifact; model và cấu hình được lưu cùng bộ kết quả, đọc bằng đường dẫn tường minh. Chỉ thêm kiểm tra hash khác khi có nhu cầu thực tế.
+
+Model không nhận nhãn test; chỉ ghép nhãn sau score. Giữ model/ngưỡng đã chốt khi báo test; sửa nhãn test không được đổi feature, score hoặc lựa chọn. Thêm phân tích sau khi xem test phải ghi là thăm dò.
+
+## Mask, nguồn cửa sổ và kết quả thiếu
+
+- `split`, `segment_id`, `valid`, `reason`, `is_reference` có thể là cột trong bảng feature/score. Common mask lấy giao timestamp hợp lệ của các cấu hình đang so và lưu policy/danh sách cấu hình cùng số đếm. Không cần `mask_id` dạng hash hoặc tệp riêng mỗi mask.
+- Giữ biên cửa sổ, source_min/max và kết quả kiểm tra nguồn có giao sự cố/split. Khi fill, giữ nguồn gốc trong quá trình tính để kiểm tra đúng; không bắt buộc xuất danh sách mọi raw_row_id cho từng feature/cửa sổ. Dùng fixture kiểm tra trực tiếp nguồn được dùng; raw và code đủ để tính lại.
+- Invalid vẫn hiện trên lưới mốc, score/alarm null; lý do ngắn theo thứ tự ưu tiên cố định. Coverage dùng số quan sát thật trước fill. Metric lưu mẫu số, số đếm và N/A có lý do; JSON không dùng NaN/Infinity.
+- Phân biệt reference mask dùng fit/calibration và evaluation mask dùng metric. Những quy tắc này bảo vệ kết quả ML, không được bỏ để giảm số cột.
+
+## Cache và log
+
+Mặc định không có cache tự động giữa các lần chạy. Trong một lần chạy, fit/score mỗi cấu hình một lần rồi dùng lại score để quét q/merge. Nếu đọc lại score đã lưu, người chạy chỉ rõ thư mục/config và đối chiếu metadata; không tự suy cache hợp lệ chỉ từ tên file. Chỉ xây cache khi đo được nút thắt thời gian đáng kể.
+
+Console chỉ cần tác vụ, số mốc hợp lệ, thời gian và nơi lưu kết quả; lỗi có nguyên nhân. Thống kê chất lượng nằm trong data card, kết quả ML nằm trong bảng. Không log từng dòng/cửa sổ, cache hit/miss hay hash mọi artifact. Debug chi tiết là tùy chọn khi điều tra lỗi.

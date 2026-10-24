@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P0 |
-| Quy mô | M — tương đối, chưa quy đổi ngày |
 | Mốc | M4 |
-| Branch | `feat/pb19-frozen-test-benchmark` |
 | Phụ thuộc | [PB18](PB18-validation-freeze.md) |
 | Nguồn | Backlog PB19; pipeline chương 11–13 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -19,24 +17,24 @@ Người đánh giá cần kết quả test độc lập cho E2–E4 từ đúng
 
 ## Phạm vi và ranh giới
 
-Chấm các run đã đăng ký và frozen, tính metric/bảng test. Không chọn lại mô hình/ngưỡng từ kết quả test; ý tưởng mới được tách exploratory.
+Chấm các cấu hình/seed đã ghi trước test, tính metric và bảng kết quả trong cùng script đánh giá. Không chọn lại mô hình/ngưỡng từ kết quả test; ý tưởng mới được tách exploratory.
 
 ## Đầu vào và đầu ra
 
 | Loại | Dữ liệu hoặc sản phẩm | Hợp đồng cần đáp ứng |
 | --- | --- | --- |
-| Đầu vào | Frozen config/artifacts; test rows; events | Hash khớp, feature/quality/mask policy đã cố định, labels tách khỏi score. |
-| Đầu ra | scores.parquet; episodes.csv; metrics.json | Toàn bộ grid, null/reason invalid, model/tau/window/run truy vết được. |
+| Đầu vào | Frozen config/artifacts; test rows; events | Model/cột/tham số khớp cấu hình đã chọn; quality/mask policy cố định, labels tách khỏi score. |
+| Đầu ra | scores.parquet; episodes.csv; bảng metric tổng hợp/sự cố | Toàn bộ grid, null/reason invalid, model/tau/window/run truy vết được. |
 | Đầu ra | Summary/event tables; X6 seed results | Common mask, coverage/positive rate và kết quả mọi seed đã đăng ký. |
 
 ## Yêu cầu chức năng
 
-- **PB19-FR01:** Lệnh test --frozen chỉ nạp artifact đủ/đúng hash; dùng train-fitted preprocessing/model và feature policy đã khóa, không fit/recalibrate. Ghép nhãn sau khi sinh score.
-- **PB19-FR02:** Giữ mọi mốc dự kiến với split/segment/valid/reason/score/threshold/alarm/model_version; metric chỉ dùng explicit valid comparison mask, invalid score/alarm là null.
-- **PB19-FR03:** Chấm mọi config X1/X2/mở rộng đã đăng ký; X6 chạy IF seed 42/7/2026 đã freeze, không thay seed chính dựa trên test.
-- **PB19-FR04:** Summary có model,feature_set,W,seed,mask_id,n_train,n_test_valid,positive_rate,AP,precision,recall,F1,detected_events,evaluable_events,median_delay,outside_episodes_per_day,alert_fraction,fit_seconds,score_ms_per_window.
+- **PB19-FR01:** Một hàm hoặc lệnh test nạp đúng model/preprocessing và cấu hình đã chốt bằng đường dẫn tường minh; kiểm tra file/cột/tham số. Không fit/recalibrate trong test; ghép nhãn sau score. Không yêu cầu một framework freeze/test riêng.
+- **PB19-FR02:** Giữ mọi mốc với split/segment/valid/reason/score/alarm. Threshold/model/config có thể ghi một lần cho bảng hoặc theo config_id khi gộp nhiều cấu hình; metric dùng valid common mask, invalid score/alarm null.
+- **PB19-FR03:** Chấm các cấu hình đã chọn/định trước cho câu hỏi X1/X2 và phần mở rộng thực hiện. Không cần mang mọi cấu hình grid IF lên test. X6 báo seed 42/7/2026 đã chuẩn bị từ train/validation, giữ seed chính 42.
+- **PB19-FR04:** Bảng tổng hợp có model/feature_set/W/seed, tham số hoặc config_id, n_train/n_test_valid, positive_rate/coverage, AP/precision/recall/F1, detected/evaluable events, median_delay, outside_episodes_per_day, alert_fraction và fit/score time. Common mask ghi policy/các cấu hình so sánh, không cần hash mask_id.
 - **PB19-FR05:** Bảng từng sự cố có event_id,valid_coverage,first_valid_time,detected,first_alarm,delay,max_score; thêm observational_delay và N/A reasons. Valid_coverage là valid ticks/planned ticks trong event; công bố cả missed/unobservable.
-- **PB19-FR06:** Hiện đầy đủ dataset/code/config/model hashes và điều kiện timing; kết quả test chỉ bổ sung artifact đánh giá, không ghi ngược vào quyết định chính PB18.
+- **PB19-FR06:** Ghi nguồn dữ liệu/config/model và điều kiện timing một lần cho bộ kết quả. Test chỉ bổ sung bảng đánh giá, không ghi ngược vào lựa chọn PB18; không lặp hash/metadata ở từng mốc.
 
 ## Yêu cầu chất lượng và xử lý trường hợp biên
 
@@ -45,30 +43,16 @@ Chấm các run đã đăng ký và frozen, tính metric/bảng test. Không ch�
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB19-AC01** (FR01): **Khi** thiếu frozen config hoặc checksum model/schema không khớp, **thì** test dừng trước score và nêu artifact lỗi.
-- [ ] **PB19-AC02** (FR01, FR06): **Khi** thay nhãn test rồi chạy đánh giá lại, **thì** model/feature selection/tau/frozen hash và score không đổi; chỉ kết quả nhãn/metric đổi.
+- [ ] **PB19-AC01:** **Khi** thiếu cấu hình đã chốt/model/preprocessing hoặc sai feature order/tham số tương ứng, **thì** test dừng trước score và nêu input cần sửa.
+- [ ] **PB19-AC02:** **Khi** thay nhãn test rồi đánh giá lại, **thì** model/feature/tau/cấu hình và score không đổi; chỉ nhãn/metric đổi.
 - [ ] **PB19-AC03** (FR02, FR04, FR05): **Khi** test có một sự cố bỏ sót và khoảng không quan sát, **thì** bảng hiện đầy đủ missed/unobservable/coverage; invalid không bị coi normal, delay không gán 0.
-- [ ] **PB19-AC04** (FR03, FR04, FR06): **Khi** chạy các seed/config đăng ký, **thì** báo tất cả, giữ cấu hình chính và comparison mask đúng registry.
-
-## Checklist triển khai
-
-- [ ] Hoàn thiện `test --frozen ...`: chỉ nạp artifact đã khóa, không fit hoặc hiệu chỉnh trong test; ghép nhãn sau score.
-- [ ] Chấm cùng mốc cho từng bảng, lưu `scores.parquet`, `episodes.csv`, `metrics.json`, bảng summary và bảng từng sự cố.
-- [ ] Chạy các biến thể X1/X2 và phần mở rộng đã đăng ký; X6 báo cả seed 42/7/2026 cho IF, cấu hình chính vẫn seed đã chốt.
-- [ ] Summary có model/feature_set/W/seed/mask_id/n_train/n_test_valid/positive_rate/AP/precision/recall/F1/detected_events/evaluable_events/median_delay/outside_episodes_per_day/alert_fraction/fit_seconds/score_ms_per_window.
-- [ ] Bảng sự cố có event_id/valid_coverage/first_valid_time/detected/first_alarm/delay/max_score, kèm observational delay và lý do không đánh giá được nếu có.
+- [ ] **PB19-AC04:** **Khi** chạy các seed/cấu hình đã định trước, **thì** báo tất cả kết quả đó, giữ cấu hình chính và so cùng mốc hợp lệ.
 
 ## Rủi ro và quyết định cần ghi nhận
 
 - Bảng test nhiều biến thể dễ dẫn tới chọn lại 'winner': phân biệt cấu hình chọn trước với mô tả hậu nghiệm.
 - Dữ liệu test thiếu đầu sự cố làm delay lớn: giữ delay từ event start và báo observational_delay bổ sung.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
-- [ ] Cung cấp frozen run_id, toàn bộ test tables, mask/coverage report và kiểm tra nhãn test không làm đổi score/model.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.
+- [ ] Cung cấp cấu hình đã chọn và bảng test có coverage; kiểm tra nhãn test không làm đổi score/model. Dùng chung bảng này cho report, không thêm mask report riêng.

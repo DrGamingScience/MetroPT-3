@@ -8,6 +8,7 @@ from pathlib import Path
 
 from metropt3 import __version__
 from metropt3.config import ConfigError, load_config
+from metropt3.ingest import IngestError, OFFICIAL_PACKAGE_URL, ingest_package
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,10 +21,20 @@ def main(argv: list[str] | None = None) -> int:
         "check-config", help="Validate a config and print its hash and resolved paths."
     )
     check.add_argument("--config", type=Path, default=Path("configs/base.yaml"))
+    ingest = commands.add_parser("ingest", help="Verify and lock a MetroPT-3 ZIP package.")
+    ingest.add_argument("--config", type=Path, default=Path("configs/base.yaml"))
+    ingest.add_argument("--source", default=OFFICIAL_PACKAGE_URL, help="Package URL or local ZIP path.")
+    ingest.add_argument("--source-url", help="Explicit original URL for a local package, if known.")
     args = parser.parse_args(argv)
     try:
         config = load_config(args.config)
-    except ConfigError as exc:
+        if args.command == "ingest":
+            result = ingest_package(
+                args.source, raw_dir=config.resolve_path("raw"), source_url=args.source_url
+            )
+            print(json.dumps(result.as_dict(), indent=2, ensure_ascii=False))
+            return 0
+    except (ConfigError, IngestError) as exc:
         parser.exit(2, f"metropt3: {exc}\n")
     print(
         json.dumps(

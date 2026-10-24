@@ -57,6 +57,29 @@ Config, manifest và từng loại artifact có schema version riêng, khởi đ
 
 SHA-256 luôn tính từ byte file thực tế sau khi ghi. Đường dẫn artifact trong manifest giải từ thư mục chứa manifest; tham chiếu raw dùng chung có thể đi ra ngoài thư mục run. Downstream kiểm tra file tồn tại, schema, completed status và checksum trước khi dùng.
 
+## Raw manifest PB02
+
+`ingest` xuất `data/raw/sha256-<hash>/raw_manifest.json` cùng CSV/PDF nguyên byte. Không có con trỏ "latest" dùng chung; downstream nhận đường dẫn manifest cụ thể từ JSON của CLI. Manifest chỉ xuất hiện sau khi toàn bộ dữ liệu đã xác minh và thư mục staging được đổi tên nguyên khối. Lỗi thông thường dọn staging; nếu tiến trình bị kill, thư mục `.ingest-*` còn lại không phải version hoàn tất.
+
+Schema raw v1 có các trường:
+
+| Trường | Nội dung |
+| --- | --- |
+| `schema_version`, `status`, `dataset_version` | `1`, `completed` và hash định danh nội dung. Completed chỉ xác nhận ingest, không thay kết quả audit. |
+| `source` | `kind`, `location` (URL hoặc file URI), `resolved_url` sau redirect và `url` nguồn được khai báo; URL local không biết là null. |
+| `downloaded_at`, `package` | UTC lúc nhận gói hoàn tất; byte/SHA-256 của ZIP thực nhận. Với local đây là thời điểm nhập, không suy ra ngày tải lịch sử. |
+| `files.csv`, `files.pdf` | `path` tương đối với manifest, `archive_member` gốc, `bytes`, `sha256`. |
+| `csv` | Header nguyên gốc, index/timestamp, 7 analog, 8 digital, feature allowlist, số record thực đo và quy ước `raw_row_id`. |
+| `audit` | SHA-256 CSV tham chiếu, `required` và `reason`; khác tham chiếu bắt buộc audit lại. |
+
+Hash version là SHA-256 của JSON UTF-8 canonical (`sort_keys=True`, separators `(',', ':')`) chứa `schema_version` và `files`. Bao gồm CSV/PDF, tên file và tên thành viên ZIP; thay nội dung PDF cũng tạo version mới. Đóng gói lại cùng các thành viên không đổi version; timestamp/nguồn/byte ZIP không thuộc định danh. Khi dùng lại version, giữ nguồn và ngày nhập đầu tiên trong manifest bất biến, kiểm tra lại checksum mọi file; không ghi đè khi phát hiện sửa đổi hoặc thiếu file.
+
+CSV phải có đúng `timestamp`, 15 sensor đúng chính tả và một index trong `""`, `index`, `Unnamed: 0`; không đổi tên header. `feature_columns` chỉ gồm 15 sensor, không chứa timestamp/index. `row_count` đếm CSV record thực tế, không dùng số công bố. Không kiểm tra giá trị numeric, sắp xếp, deduplicate hoặc sửa dữ liệu ở bước này.
+
+`raw_row_id` là vị trí CSV data record bắt đầu từ 0, bỏ header; phạm vi định danh là cặp `(dataset_version, raw_row_id)`. Đây là CSV record, không phải số dòng vật lý nếu giá trị được quote có newline. Index gốc có thể không liên tiếp và không thay thế `raw_row_id`. PB03/PB04 materialize ID khi đọc raw; PB02 chỉ ghi quy ước để giữ nguyên byte CSV.
+
+PDF được kiểm tra signature `%PDF-` và marker `%%EOF`, không phân tích ngữ nghĩa nội dung. ZIP phải có đúng một CSV và một PDF; từ chối tên đường dẫn thoát thư mục hoặc symlink. CRC kiểm tra toàn bộ thành viên trước khi xuất version.
+
 ## Quan hệ giữa các stage
 
 | Stage hoặc PB | Đầu vào chính | Đầu ra cần có |

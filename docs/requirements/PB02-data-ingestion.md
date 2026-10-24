@@ -44,17 +44,17 @@ Tải/nhập gói MetroPT-3 và xác minh nguồn, tệp, header. Chưa sửa d�
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB02-AC01** (FR01): **Khi** gói bị cắt hoặc thiếu CSV/PDF, **thì** ingest thất bại rõ lý do và không phát hành manifest thành công.
-- [ ] **PB02-AC02** (FR02, FR03): **Khi** header có DV_eletric và Towers đúng tên, **thì** giữ nguyên tên; thiếu sensor hoặc đổi tên ngoài ánh xạ được báo rõ.
-- [ ] **PB02-AC03** (FR04): **Khi** nhập một CSV có checksum khác bản tham chiếu, **thì** lưu version mới và yêu cầu audit; raw cũ giữ nguyên.
-- [ ] **PB02-AC04** (FR05): **Khi** ingest cùng một gói hai lần, **thì** version/checksum raw không đổi và không sinh bản sao dữ liệu.
+- [x] **PB02-AC01** (FR01): **Khi** gói bị cắt hoặc thiếu CSV/PDF, **thì** ingest thất bại rõ lý do và không phát hành manifest thành công.
+- [x] **PB02-AC02** (FR02, FR03): **Khi** header có DV_eletric và Towers đúng tên, **thì** giữ nguyên tên; thiếu sensor hoặc đổi tên ngoài ánh xạ được báo rõ.
+- [x] **PB02-AC03** (FR04): **Khi** nhập một CSV có checksum khác bản tham chiếu, **thì** lưu version mới và yêu cầu audit; raw cũ giữ nguyên.
+- [x] **PB02-AC04** (FR05): **Khi** ingest cùng một gói hai lần, **thì** version/checksum raw không đổi và không sinh bản sao dữ liệu.
 
 ## Checklist triển khai
 
-- [ ] Triển khai `ingest.py`, nhận gói tải chính thức hoặc đường dẫn local, giữ nguyên CSV và PDF mô tả trong `data/raw/`.
-- [ ] Lưu `raw_manifest.json`: URL, ngày tải, tên file, byte, SHA-256, schema version; giữ `raw_row_id` và tên cột gốc.
-- [ ] Kiểm tra header 15 cảm biến, `timestamp` và cột chỉ mục; giữ chính tả `DV_eletric`, `Towers`; index không vào feature.
-- [ ] Đối chiếu SHA-256 CSV mà pipeline đã ghi: `db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24`. Nếu khác, tạo phiên bản dữ liệu mới và yêu cầu audit lại trong luồng chạy.
+- [x] Triển khai `ingest.py`, nhận gói tải chính thức hoặc đường dẫn local, giữ nguyên CSV và PDF mô tả trong `data/raw/`.
+- [x] Lưu `raw_manifest.json`: URL, ngày tải, tên file, byte, SHA-256, schema version; giữ `raw_row_id` và tên cột gốc.
+- [x] Kiểm tra header 15 cảm biến, `timestamp` và cột chỉ mục; giữ chính tả `DV_eletric`, `Towers`; index không vào feature.
+- [x] Đối chiếu SHA-256 CSV mà pipeline đã ghi: `db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24`. Nếu khác, tạo phiên bản dữ liệu mới và yêu cầu audit lại trong luồng chạy.
 
 ## Rủi ro và quyết định cần ghi nhận
 
@@ -63,10 +63,42 @@ Tải/nhập gói MetroPT-3 và xác minh nguồn, tệp, header. Chưa sửa d�
 
 ## Bằng chứng để đóng PB
 
-- [ ] Đính kèm manifest mẫu, kết quả hai lần ingest và ví dụ xử lý checksum/header lỗi.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
+- [x] Đính kèm manifest mẫu, kết quả hai lần ingest và ví dụ xử lý checksum/header lỗi.
+- [x] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
 - [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
 
 ## Ghi chú thực hiện
 
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.
+Ngày triển khai: **2026-10-24**. Branch: `feat/pb02-data-ingestion`. Trạng thái **In review**, chưa merge/đóng Done và chưa tạo PR.
+
+Đã triển khai [ingest.py](../../src/metropt3/ingest.py), lệnh `metropt3 ingest`, [test_ingest.py](../../tests/test_ingest.py), hướng dẫn trong [README](../../README.md#nhập-và-khóa-dữ-liệu-pb02) và [hợp đồng raw v1](../artifact_contracts.md#raw-manifest-pb02). Không thêm dependency.
+
+| AC | Kết quả và bằng chứng |
+| --- | --- |
+| AC01 | Đạt: test `test_invalid_package_never_publishes_manifest`, `test_corrupt_zip_fails_without_ready_state`, `test_incomplete_csv_fails`, `test_url_download_verifies_transport_and_preserves_url`, `test_publish_failure_removes_staging_and_leaves_previous_version`. Thiếu CSV/PDF, CRC lỗi, ZIP cắt, tải dở và publish lỗi đều không công bố version mới. |
+| AC02 | Đạt: test `test_preserves_bytes_header_and_records_measured_provenance`, `test_invalid_header_reports_original_names`, `test_explicit_index_headers_are_preserved`, `test_row_id_uses_csv_records_in_original_order`. Giữ nguyên spelling/header/index và byte, không kiểm tra/sửa giá trị cảm biến. |
+| AC03 | Đạt: test `test_changed_csv_creates_auditable_version_without_touching_old`, `test_changed_description_versions_the_source_package`, `test_matching_reference_does_not_request_checksum_audit`. CSV synthetic khác tham chiếu tạo version mới với lý do `csv_checksum_differs_from_reference`; raw cũ không đổi. |
+| AC04 | Đạt: test `test_idempotence_preserves_files_manifest_and_timestamp`, `test_concurrent_same_package_publishes_one_version`, `test_locked_version_tampering_is_not_overwritten`. Bằng chứng nhập lại dữ liệu UCI thật được lưu tại [validation.json](../examples/pb02/validation.json). |
+
+Lệnh kiểm tra trên Windows (thư mục tạm nằm trong workspace):
+
+```powershell
+New-Item -ItemType Directory -Force .pytest_tmp | Out-Null
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest_tmp/pb02-check -o cache_dir=.pytest_tmp/cache
+.\.venv\Scripts\python.exe -m pip check
+git diff --check
+```
+
+Kết quả: **124 passed**, `pip check`: **No broken requirements found**, `git diff --check` sạch. Bộ test chạy bằng ZIP synthetic, không cần mạng. Test CLI kiểm tra cả trả JSON thành công, reuse, và lỗi mã 2 không traceback.
+
+Gói [UCI chính thức](https://archive.ics.uci.edu/dataset/791/metropt3%2Bdataset) đã được tải qua CLI; đo được CSV **218.300.507 byte**, **1.516.948 record**, SHA-256 khớp tham chiếu. Hai lần nhập lại cùng CSV/PDF (đóng gói lại, giữ nguyên tên thành viên ZIP) đều trả `reused: true`, manifest không đổi và chỉ có một thư mục version. [Manifest mẫu thực tế](../examples/pb02/raw_manifest.json) và [kết quả nhập lại](../examples/pb02/validation.json) là bằng chứng; dữ liệu raw lớn nằm trong `data/raw/`, được gitignore.
+
+Quyết định bổ sung:
+
+- Mỗi version có manifest riêng tại `data/raw/sha256-<hash>/raw_manifest.json`; CLI trả đường dẫn chính xác, không chọn version mới nhất ngầm định. Version bao gồm cả CSV/PDF, tên file và thành viên ZIP; metadata đóng gói/nguồn/ngày tải không đổi định danh.
+- Local không biết URL thì lưu null và file URI; `--source-url` chỉ ghi nguồn người dùng khai báo, không biến gói local thành nguồn đã được chứng thực.
+- Chấp nhận đúng một index nguyên gốc trong `""`, `index`, `Unnamed: 0`. `raw_row_id` là vị trí CSV record bắt đầu từ 0, theo version; chưa thêm cột vào raw để giữ nguyên byte.
+- `completed` xác nhận nhập/xác minh gói, không thay audit PB03. Checksum khác tham chiếu được nhận vào version riêng và trả `audit_required: true` cùng lý do; không tự chấp thuận để huấn luyện.
+- Nhập lại xác minh manifest/file đã khóa; dữ liệu bị thay đổi hoặc mất sẽ báo lỗi thay vì sửa. Xử lý hai tiến trình cùng nhập một gói được kiểm thử; rename thư mục staging là điểm công bố version.
+
+Bước tiếp theo: review/merge Pb02, cập nhật PR/ngày xong trong bảng theo dõi; PB03 audit chất lượng và PB04 đọc sự cố theo manifest cụ thể.

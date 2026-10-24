@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-24",
+  "kind": "real_UCI_package_validation",
+  "first_import": {
+    "source": "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip",
+    "reused": false
+  },
+  "reimports": {
+    "source": "same original CSV/PDF repackaged under the original archive member names",
+    "count": 2,
+    "reused": [
+      true,
+      true
+    ]
+  },
+  "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+  "csv_sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24",
+  "csv_bytes": 218300507,
+  "csv_row_count_measured": 1516948,
+  "audit_required": false,
+  "manifest_unchanged_after_reimports": true,
+  "raw_version_directory_count": 1,
+  "sample_manifest_sha256": "4ce7afaf52500c5953be4a70e31712bb4e2b8fc89f6f85a3682fb2c3489b7202",
+  "automated_tests": {
+    "passed": 124,
+    "failed": 0
+  }
+}

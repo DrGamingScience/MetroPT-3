@@ -5,13 +5,13 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P2 — tùy chọn |
-| Quy mô | L — tương đối, chưa quy đổi ngày |
 | Mốc | P2 — mở rộng feature |
-| Branch | `experiment/pb25-time-weighted-features` |
 | Phụ thuộc | [PB15](PB15-experiment-runner.md) |
 | Nguồn | Backlog PB25; pipeline chương 6, 13 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
+
+**Phạm vi hiện tại: Deferred.** Chỉ triển khai khi có câu hỏi hoặc nhu cầu cụ thể; các yêu cầu dưới đây áp dụng nếu mở lại mục này.
 
 ## Mục tiêu và nhu cầu
 
@@ -49,24 +49,11 @@ Nhánh feature riêng so với mean/tỷ lệ theo số mẫu của benchmark; k
 - [ ] **PB25-AC03** (FR03): **Khi** không còn covered duration hoặc mẫu quá tuổi, **thì** invalid có reason, không score hoặc mean 0 giả.
 - [ ] **PB25-AC04** (FR04, FR05): **Khi** so nhánh time-weighted với benchmark, **thì** schema/run/tau riêng, cùng comparison mask và công bố phần coverage khác.
 
-## Checklist triển khai
-
-- [ ] Ghi quyết định max hold, biên cửa sổ, denominator và feature_set mới trước triển khai.
-- [ ] Triển khai weighted aggregates và lineage cùng kiểm tra nhân quả.
-- [ ] Thêm fixture thời lượng không đều, zero coverage và gap.
-- [ ] Fit/calibrate riêng trên train/validation và tạo bảng đối chiếu với nhánh chuẩn.
-
 ## Rủi ro và quyết định cần ghi nhận
 
 - Trọng số giữ mẫu lâu có thể khuếch đại giá trị cũ: giới hạn tuổi và báo covered duration.
-- Thay công thức nhưng giữ feature_set cũ làm cache sai: version/schema/hash riêng.
+- Thay công thức phải có tên feature_set riêng và ghi trong cấu hình để không nhầm bảng kết quả; không cần cache/hash riêng.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
 - [ ] Cung cấp policy có giá trị cụ thể, weighted schema, test tính tay/cause và bảng validation so nhánh chuẩn.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.

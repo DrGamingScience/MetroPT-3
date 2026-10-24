@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P1 |
-| Quy mô | M — tương đối, chưa quy đổi ngày |
 | Mốc | M3 — Data Mining P1 |
-| Branch | `feat/pb17-operating-modes` |
 | Phụ thuộc | [PB06](PB06-train-eda.md), [PB08](PB08-train-preprocessing.md) |
 | Nguồn | Backlog PB17; pipeline chương 5 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -19,21 +17,21 @@ Người giải thích cảnh báo cần nhìn thấy các chế độ vận hà
 
 ## Phạm vi và ranh giới
 
-Nhánh StandardScaler/PCA/K-Means phục vụ khám phá, fit trên train reference; PCA cho detector thuộc PB26.
+Phân tích gọn trong notebook: PCA giúp nhìn cấu trúc dữ liệu, K-Means gom cửa sổ có tín hiệu giống nhau để khảo sát trạng thái hiếm/cảnh báo. Fit trên train reference; dùng grid k=2..6 đã giới hạn. Không xây hệ thống gán nhãn chế độ hoặc tầng pipeline riêng. PCA cho detector thuộc PB26.
 
 ## Đầu vào và đầu ra
 
 | Loại | Dữ liệu hoặc sản phẩm | Hợp đồng cần đáp ứng |
 | --- | --- | --- |
 | Đầu vào | Train-reference features; retained schema; EDA | Không dùng test để chọn scaler, PCA hoặc k. |
-| Đầu ra | Scaler/PCA/K-Means artifacts; selection note | Feature names, train hash, seed, variance và lựa chọn k. |
+| Đầu ra | Scaler/PCA/K-Means artifacts; selection note | Feature names, tập train, seed, variance và lựa chọn k trong notebook. |
 | Đầu ra | Projected/cluster tables và biểu đồ | PC1/PC2, cluster_id, số mốc, median sensor, thời lượng/alarm fraction khi có. |
 
 ## Yêu cầu chức năng
 
 - **PB17-FR01:** Fit StandardScaler và PCA riêng từ train reference; lưu transformer và explained_variance_ratio_, vẽ PC1/PC2 nhưng không khẳng định 2 PC giữ đủ thông tin.
 - **PB17-FR02:** Khảo sát K-Means k=2..6 với n_init=20/seed=42 trên dữ liệu đã scale; có thể MiniBatchKMeans nếu cấu hình và lý do được lưu.
-- **PB17-FR03:** Silhouette tính trên sample tối đa 5000 cửa sổ train lấy theo thời gian, lưu sample; chọn k dựa cả silhouette, kích thước, tâm và tần suất chuyển cụm.
+- **PB17-FR03:** Silhouette tính trên sample tối đa 5000 cửa sổ train lấy theo thời gian, ghi seed/cách lấy sample; chọn k dựa cả silhouette, kích thước, tâm và tần suất chuyển cụm.
 - **PB17-FR04:** Chốt k và ý nghĩa mô tả từ train trước test; validation/test chỉ transform/predict bằng artifacts cố định, không refit.
 - **PB17-FR05:** Gán tên A/B/C... ban đầu, lưu cluster_id/số mốc/median sensor/thời lượng theo split; bổ sung alarm fraction khi có score mà không dùng nó để chọn lại k theo test.
 
@@ -45,27 +43,15 @@ Nhánh StandardScaler/PCA/K-Means phục vụ khám phá, fit trên train refere
 ## Tiêu chí nghiệm thu
 
 - [ ] **PB17-AC01** (FR01): **Khi** fit PCA trên train và sinh biểu đồ, **thì** có variance ratios, schema và transformer; số PC giữ thông tin được công bố đúng.
-- [ ] **PB17-AC02** (FR02, FR03): **Khi** chạy k grid hai lần cùng train/seed/sample, **thì** có bảng lựa chọn với chỉ số, kích thước/tâm và sample list nhất quán.
+- [ ] **PB17-AC02** (FR02, FR03): **Khi** chạy k grid hai lần cùng train/seed/sample, **thì** có bảng lựa chọn với chỉ số, kích thước/tâm và cách lấy mẫu và kết quả nhất quán.
 - [ ] **PB17-AC03** (FR04): **Khi** thay sensor values validation/test, **thì** scaler/PCA/tâm cụm và k đã chọn không đổi.
 - [ ] **PB17-AC04** (FR05): **Khi** ghép cluster với alarm sau benchmark, **thì** tỷ lệ theo đúng split/mask; không đổi cluster fit và không gọi cluster là lỗi cơ học.
-
-## Checklist triển khai
-
-- [ ] Fit nhánh StandardScaler/PCA trên train reference; vẽ PC1/PC2 và explained variance, lưu toàn bộ transformer.
-- [ ] K-Means k=2..6, n_init=20, seed=42; silhouette trên tối đa 5000 mốc train lấy theo thời gian, kèm kích thước/tâm/tần suất chuyển cụm.
-- [ ] Chốt k từ train và ghi lý do; dùng transformer/tâm cụm cố định khi chiếu validation/test. Ban đầu đặt tên trạng thái A/B/C.
 
 ## Rủi ro và quyết định cần ghi nhận
 
 - Train không bao phủ mọi chế độ hợp lệ: cụm hiếm/xa tâm là tín hiệu cần kiểm tra, không nhãn hỏng.
 - Chọn k chỉ từ silhouette dễ bỏ qua cụm quá nhỏ: ghi đầy đủ các căn cứ.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
-- [ ] Cung cấp train-fit artifacts, sample manifest, bảng chọn k và ví dụ projection dùng model cố định.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.
+- [ ] Cung cấp notebook với bảng chọn k, một hình PCA và mô tả nhóm tín hiệu; lưu transformer nếu dùng lại trên validation/test. Không cần sample manifest hoặc report riêng.

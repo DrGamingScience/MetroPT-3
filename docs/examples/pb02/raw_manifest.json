@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "status": "completed",
+  "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+  "source": {
+    "kind": "url",
+    "location": "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip",
+    "resolved_url": "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip",
+    "url": "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip"
+  },
+  "downloaded_at": "2026-10-24T11:19:33.531044+00:00",
+  "package": {
+    "bytes": 218381995,
+    "sha256": "aab991a970e58210de853bb8078ce0e63abb4d9412fdc5c79792dae3d8e1721a"
+  },
+  "files": {
+    "csv": {
+      "path": "MetroPT3(AirCompressor).csv",
+      "archive_member": "MetroPT3(AirCompressor).csv",
+      "bytes": 218300507,
+      "sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24"
+    },
+    "pdf": {
+      "path": "Data Description_Metro.pdf",
+      "archive_member": "Data Description_Metro.pdf",
+      "bytes": 81208,
+      "sha256": "b00fac0e8899854078309bef4adaa480d82ecf14dc81c5097c3646973e824127"
+    }
+  },
+  "csv": {
+    "columns": [
+      "",
+      "timestamp",
+      "TP2",
+      "TP3",
+      "H1",
+      "DV_pressure",
+      "Reservoirs",
+      "Oil_temperature",
+      "Motor_current",
+      "COMP",
+      "DV_eletric",
+      "Towers",
+      "MPG",
+      "LPS",
+      "Pressure_switch",
+      "Oil_level",
+      "Caudal_impulses"
+    ],
+    "index_column": "",
+    "time_column": "timestamp",
+    "analog_columns": [
+      "TP2",
+      "TP3",
+      "H1",
+      "DV_pressure",
+      "Reservoirs",
+      "Oil_temperature",
+      "Motor_current"
+    ],
+    "digital_columns": [
+      "COMP",
+      "DV_eletric",
+      "Towers",
+      "MPG",
+      "LPS",
+      "Pressure_switch",
+      "Oil_level",
+      "Caudal_impulses"
+    ],
+    "feature_columns": [
+      "TP2",
+      "TP3",
+      "H1",
+      "DV_pressure",
+      "Reservoirs",
+      "Oil_temperature",
+      "Motor_current",
+      "COMP",
+      "DV_eletric",
+      "Towers",
+      "MPG",
+      "LPS",
+      "Pressure_switch",
+      "Oil_level",
+      "Caudal_impulses"
+    ],
+    "row_count": 1516948,
+    "raw_row_id": {
+      "base": 0,
+      "rule": "zero-based CSV data-record position, excluding header; scoped by dataset_version",
+      "materialized_in_raw": false
+    }
+  },
+  "audit": {
+    "required": false,
+    "reason": null,
+    "reference_csv_sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24"
+  }
+}

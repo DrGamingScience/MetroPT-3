@@ -5,13 +5,11 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P0 |
-| Quy mô | M — tương đối, chưa quy đổi ngày |
 | Mốc | M1 |
-| Branch | `feat/pb03-data-quality-audit` |
 | Phụ thuộc | [PB02](PB02-data-ingestion.md) |
 | Nguồn | Backlog PB03; pipeline chương 2–3 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
 
 ## Mục tiêu và nhu cầu
 
@@ -26,8 +24,8 @@ Parse, audit, xử lý duplicate xác định được và đánh dấu chất l
 | Loại | Dữ liệu hoặc sản phẩm | Hợp đồng cần đáp ứng |
 | --- | --- | --- |
 | Đầu vào | Raw + raw_manifest.json + train_end | Nguồn đúng checksum; ranh giới lịch đã có trong config. |
-| Đầu ra | Cleaned rows; quality/gap/conflict tables | Giữ raw_row_id, flags, duplicate counts và segment_id. |
-| Đầu ra | data_card.md; audit artifact | Thời gian, missing, nhịp và delta0/gap_break đã fit từ timestamp train. |
+| Đầu ra | Cleaned rows với quality flags; bảng lỗi/gap khi cần xem chi tiết | Giữ raw_row_id, flags, duplicate counts và segment_id. |
+| Đầu ra | Một data_card.md gồm thống kê chất lượng và split | Thời gian, missing, nhịp và delta0/gap_break đã fit từ timestamp train. |
 
 ## Yêu cầu chức năng
 
@@ -35,7 +33,7 @@ Parse, audit, xử lý duplicate xác định được và đánh dấu chất l
 - **PB03-FR02:** Ổn định thứ tự theo timestamp/raw_row_id; gộp dòng trùng hoàn toàn và ghi số bản; timestamp trùng nhưng cảm biến khác nhau bị loại khỏi dữ liệu hợp lệ, có bảng xung đột.
 - **PB03-FR03:** Báo schema/types, missing, infinity, domain digital, số giá trị duy nhất, thời gian đầu/cuối, phân bố delta và gaps; tách thiếu ô với thiếu mốc thời gian. Thống kê phục vụ chọn mô hình chỉ trên train.
 - **PB03-FR04:** Fit delta0 là mode delta timestamp dương trên phần train đã khai báo, lưu median/quantile; gap_break=3×delta0, gap chỉ khi delta > gap_break, tạo segment_id mới.
-- **PB03-FR05:** Giữ giá trị cực đoan hợp lệ và phần dữ liệu 01/09/2020 nếu tồn tại; không tự áp luật áp suất không âm. Mọi sửa đổi có lý do/provenance trong interim, raw bất biến.
+- **PB03-FR05:** Giữ giá trị cực đoan hợp lệ và phần dữ liệu 01/09/2020 nếu tồn tại; không tự áp luật áp suất không âm. Ghi số dòng và lý do làm sạch trong data card; giữ raw_row_id để xem lại raw, không tạo nhật ký mỗi thao tác.
 
 ## Yêu cầu chất lượng và xử lý trường hợp biên
 
@@ -49,24 +47,11 @@ Parse, audit, xử lý duplicate xác định được và đánh dấu chất l
 - [ ] **PB03-AC03** (FR04): **Khi** thay timestamp của phần test mà giữ train, **thì** delta0 và gap_break đã fit không đổi.
 - [ ] **PB03-AC04** (FR05): **Khi** dữ liệu có giá trị cực đoan và các dòng ngày 01/09, **thì** giữ chúng nếu không vi phạm quy tắc chất lượng đã xác nhận.
 
-## Checklist triển khai
-
-- [ ] Triển khai `audit.py`: parse timestamp, numeric, missing, infinity, digital domain, số giá trị duy nhất, quantile, nhịp ghi và gap.
-- [ ] Deduplicate dòng trùng hoàn toàn, lưu số bản gộp; timestamp trùng nhưng khác cảm biến vào bảng xung đột và bị loại khỏi dữ liệu hợp lệ.
-- [ ] Ước lượng `delta0` từ timestamp của phần train theo ranh giới lịch đã khai báo; lưu `gap_break = 3 × delta0`, `segment_id` và bảng gap. PB05 sẽ xác nhận split đầy đủ sau đó.
-- [ ] Giữ các giá trị cực đoan chưa có bằng chứng lỗi đo, giữ timestamp theo đồng hồ gốc và giữ phần dữ liệu ngày 01/09/2020 nếu có.
-
 ## Rủi ro và quyết định cần ghi nhận
 
 - Dùng mode từ toàn file làm leakage: fit nhịp trên timestamp train rồi đóng băng.
 - Loại duplicate nhầm tín hiệu ổn định: chỉ gộp bản trùng hoàn toàn cùng timestamp.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
-- [ ] Cung cấp data card, bảng counts trước/sau làm sạch, gap list và test fixture các lỗi chất lượng.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.
+- [ ] Cung cấp một data card có counts trước/sau và tóm tắt gap; bảng chi tiết chỉ khi cần phân tích. Kiểm tra fixture lỗi chất lượng.

@@ -14,7 +14,7 @@ trên dữ liệu máy nén khí đường sắt MetroPT-3 bằng MAD, Isolation
 | [Phân tích yêu cầu và quản lý PB](docs/requirements/README.md) | File yêu cầu riêng cho PB01–PB26, checklist nghiệm thu và bảng theo dõi công việc. |
 | [Hợp đồng cấu hình và artifact](docs/artifact_contracts.md) | Đường dẫn, config hash, schema/version, run ID và quan hệ đầu vào/đầu ra giữa các stage. |
 
-## Cài đặt và chạy PB01
+## Cài đặt và chạy
 
 Yêu cầu Python từ 3.11. Từ root repo trên Windows PowerShell:
 
@@ -36,7 +36,23 @@ Chạy kiểm tra:
 
 `check-config` kiểm tra [configs/base.yaml](configs/base.yaml), rồi in JSON gồm config hash và đường dẫn đã giải. Lệnh này không cần raw, không tạo run và không huấn luyện model. Config sai trả mã lỗi 2 với tên trường; ví dụ `features.window_minutes` phải là số nguyên dương, quantile thuộc `(0, 1)` và mốc validation phải sau train.
 
-`paths.project_root` được giải từ vị trí file YAML; các đường dẫn còn lại giải từ root đó. Với config mẫu, dữ liệu ở `data/raw`, `data/interim`, `data/processed`; kết quả tương lai ở `artifacts/<run_id>` và `reports/<run_id>`. Xem hợp đồng artifact để biết các tệp cần lưu. Chỉ `check-config`, help và version đã được triển khai; các stage dữ liệu/mô hình sẽ bổ sung theo backlog.
+`paths.project_root` được giải từ vị trí file YAML; các đường dẫn còn lại giải từ root đó. Với config mẫu, dữ liệu ở `data/raw`, `data/interim`, `data/processed`; kết quả tương lai ở `artifacts/<run_id>` và `reports/<run_id>`. Xem hợp đồng artifact để biết các tệp cần lưu. Đã triển khai `check-config`, `ingest`, help và version; các stage tiếp theo sẽ bổ sung theo backlog.
+
+## Nhập và khóa dữ liệu PB02
+
+```powershell
+# Tải gói chính thức từ UCI (khoảng 208 MB)
+.\.venv\Scripts\python.exe -m metropt3 ingest --config configs/base.yaml
+
+# Hoặc nhập ZIP đã tải; chỉ khai báo URL gốc nếu biết rõ nguồn
+.\.venv\Scripts\python.exe -m metropt3 ingest --config configs/base.yaml --source "D:\Downloads\metropt3.zip" --source-url "https://archive.ics.uci.edu/static/public/791/metropt%2B3%2Bdataset.zip"
+```
+
+Mỗi lần thành công trả JSON với đường dẫn `data/raw/sha256-<hash>/raw_manifest.json`, dataset version, `reused` và `audit_required`. CSV/PDF giữ nguyên byte và tên file; manifest chỉ công bố cùng thư mục version sau khi kiểm tra ZIP/CRC, header, cấu trúc CSV và dấu đầu/cuối PDF. Không sửa timestamp, index hay cảm biến trong PB02.
+
+Nhập lại cùng CSV/PDF với cùng tên/thành viên ZIP chỉ xác minh và dùng lại bản đã khóa, không sửa manifest hay ngày tải đầu tiên. Checksum CSV khác bản tham chiếu vẫn được lưu thành version riêng với `audit_required: true`; cần audit PB03 trước khi dùng tiếp. Lỗi tải, gói thiếu/hỏng, header sai hoặc raw đã bị sửa trả mã 2. Nguồn local được ghi bằng URI thực; không tự suy nguồn từ tên file.
+
+Xem [hợp đồng raw](docs/artifact_contracts.md#raw-manifest-pb02) và [bằng chứng PB02](docs/requirements/PB02-data-ingestion.md).
 
 ## Hướng tiếp cận
 
@@ -54,13 +70,13 @@ Chạy kiểm tra:
 - [Bài báo ECOD](https://arxiv.org/abs/2201.00382)
   — phát hiện ngoại lệ bằng hàm phân phối tích lũy thực nghiệm.
 
-Tải dữ liệu từ UCI; repo hiện lưu tài liệu và khung PB01, chưa kèm dữ liệu thô.
+Tải dữ liệu từ UCI bằng lệnh `ingest`; dữ liệu thô và kết quả sinh ra được gitignore.
 Pipeline ghi rõ các kiểm tra trên CSV gốc và những điểm metadata chưa thống nhất.
 
 ## Trạng thái
 
-Đã có proposal, thiết kế pipeline và khung PB01 gồm package, config validator,
-CLI ban đầu, hợp đồng artifact và bộ kiểm tra. Chưa có kết quả huấn luyện hoặc
+Đã có proposal, thiết kế pipeline, khung PB01 và ingest PB02 gồm khóa nguồn,
+manifest/checksum/version, CLI và bộ kiểm tra. Chưa có kết quả huấn luyện hoặc
 so sánh mô hình; xem trạng thái review của từng PB trong bảng quản lý công việc.
 Phạm vi là phát hiện bất thường, không phải dự đoán thời điểm hỏng
 hay ước lượng tuổi thọ còn lại của thiết bị.

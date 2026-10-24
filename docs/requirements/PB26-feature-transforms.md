@@ -5,13 +5,13 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Ưu tiên | P2 — tùy chọn |
-| Quy mô | L — tương đối, chưa quy đổi ngày |
 | Mốc | P2 — thí nghiệm biến đổi feature |
-| Branch | `experiment/pb26-feature-transforms` |
 | Phụ thuộc | [PB15](PB15-experiment-runner.md), [PB17](PB17-operating-modes.md) |
 | Nguồn | Backlog PB26; pipeline chương 5, 7, 13 |
 
-Trạng thái, người phụ trách, hạn hoàn thành và PR được cập nhật tại bảng theo dõi trong README của folder này. Checklist dưới đây dùng để theo dõi chi tiết trong PB.
+Áp dụng [phạm vi tinh gọn](README.md) và [quy ước đầu ra](../artifact_contracts.md). PB là nhóm yêu cầu; có thể triển khai cùng các PB liên quan trong một script/branch. Không bắt buộc artifact riêng cho từng mục.
+
+**Phạm vi hiện tại: Deferred.** Chỉ triển khai khi có câu hỏi hoặc nhu cầu cụ thể; các yêu cầu dưới đây áp dụng nếu mở lại mục này.
 
 ## Mục tiêu và nhu cầu
 
@@ -41,33 +41,20 @@ Hai nhánh độc lập: detector dùng PCA và detector dùng lọc tương qua
 ## Yêu cầu chất lượng và xử lý trường hợp biên
 
 - Lưu thứ tự feature trước/sau transform để không chiếu sai chiều khi nạp model.
-- Đổi component count, correlation threshold hoặc retained list làm artifact/config hash đổi.
+- Ghi component count, correlation threshold và retained list trong cấu hình từng nhánh để phân biệt kết quả.
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB26-AC01** (FR01, FR02, FR03): **Khi** chạy hai nhánh đã đăng ký, **thì** registry phân biệt PCA/correlation; không âm thầm gộp biến đổi.
+- [ ] **PB26-AC01** (FR01, FR02, FR03): **Khi** chạy hai nhánh đã đăng ký, **thì** danh sách cấu hình phân biệt PCA/correlation; không âm thầm gộp biến đổi.
 - [ ] **PB26-AC02** (FR02, FR03): **Khi** thay dữ liệu validation/test, **thì** scaler/components/correlation selection từ train không đổi.
 - [ ] **PB26-AC03** (FR03, FR04): **Khi** fixture tương quan hoàn toàn có tie và một cột độc lập, **thì** danh sách giữ/bỏ theo quy tắc cố định; detector/tau riêng và bảng dùng common mask.
 - [ ] **PB26-AC04** (FR04, FR05, FR06): **Khi** báo kết quả nhánh sau khi benchmark test đã xem, **thì** nhãn exploratory rõ, không đổi cấu hình chính hoặc diễn giải contribution sai không gian.
-
-## Checklist triển khai
-
-- [ ] Đăng ký giả thuyết, số component/tiêu chí train và correlation policy.
-- [ ] Triển khai hai nhánh độc lập với lưu/nạp schema/transformer.
-- [ ] Fit lại detector, hiệu chỉnh tau trên validation và kiểm tra train-only.
-- [ ] Viết bảng so kết quả/chi phí/giới hạn giải thích, tuân điều kiện test đã đăng ký.
 
 ## Rủi ro và quyết định cần ghi nhận
 
 - PC giữ variance lớn chưa chắc giữ tín hiệu bất thường: đánh giá validation, không suy cải thiện từ variance.
 - Feature tương quan cao vẫn có thể chứa tín hiệu hữu ích: lọc là ablation riêng, không sửa baseline mặc định.
 
-## Bằng chứng để đóng PB
+## Kết quả cần xem
 
-- [ ] Cung cấp config/hypothesis registry, fitted transform metadata, test không leakage và bảng validation từng nhánh.
-- [ ] Ghi kết quả từng AC, vị trí artifact hoặc log và commit/PR có thể kiểm tra; không chỉ đánh dấu đã làm.
-- [ ] Cập nhật trạng thái, PR và ngày hoàn thành trong bảng theo dõi sau khi review đạt yêu cầu.
-
-## Ghi chú thực hiện
-
-Chưa có ghi chú. Khi triển khai, ghi quyết định bổ sung, vướng mắc và việc chuyển sang PB khác tại đây; giữ nguyên yêu cầu nguồn hoặc nêu rõ lý do thay đổi.
+- [ ] Cung cấp danh sách cấu hình và câu hỏi thí nghiệm, fitted transform metadata, test không leakage và bảng validation từng nhánh.

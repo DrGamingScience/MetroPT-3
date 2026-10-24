@@ -102,3 +102,13 @@ Quyết định bổ sung:
 - Nhập lại xác minh manifest/file đã khóa; dữ liệu bị thay đổi hoặc mất sẽ báo lỗi thay vì sửa. Xử lý hai tiến trình cùng nhập một gói được kiểm thử; rename thư mục staging là điểm công bố version.
 
 Bước tiếp theo: review/merge Pb02, cập nhật PR/ngày xong trong bảng theo dõi; PB03 audit chất lượng và PB04 đọc sự cố theo manifest cụ thể.
+
+### Sửa P2 sau audit commit `ff662ae` — 2026-10-24
+
+Audit phát hiện `_verify_locked()` bỏ qua `source`, `downloaded_at`, `package`. Đã tái hiện bằng ba regression test xóa lần lượt từng trường: cả ba thất bại trên code cũ vì ingest không báo lỗi.
+
+Đã sửa: bắt buộc đầy đủ schema manifest đã khóa; kiểm tra trường con, kiểu và giá trị hợp lệ của thông tin nguồn, timestamp UTC, byte/SHA-256 ZIP gốc. Metadata lần đầu được xác minh độc lập, không đối chiếu với lần nhập mới. Đối chiếu nội dung bằng kiểu JSON để chặn cả các trường hợp bool/int/float bị thay thế lẫn nhau. Manifest lỗi trả mã 2 qua CLI và không bị tự sửa.
+
+Bằng chứng bổ sung trong [test_ingest.py](../../tests/test_ingest.py): `test_locked_manifest_requires_provenance`, `test_locked_manifest_requires_nested_provenance`, `test_locked_manifest_rejects_invalid_provenance`, `test_locked_url_receipt_requires_http_urls`, `test_locked_manifest_rejects_nested_schema_type_changes`, `test_cli_rejects_missing_locked_provenance`. Test `test_reimport_keeps_original_receipt_when_source_and_zip_change` xác nhận nguồn URL/local, thời điểm và gói ZIP mới khác vẫn reuse hợp lệ, giữ nguyên manifest đầu tiên.
+
+Kiểm tra sau sửa: **174 passed**, không cảnh báo pytest cache khi dùng `-o cache_dir=.pytest_tmp/pb02-p2-cache`; `pip check` đạt và `git diff --check` sạch. Đã nhập lại CSV/PDF thật từ ZIP đóng gói lại: `reused: true`, một version duy nhất, toàn bộ byte/checksum/mtime raw và manifest giữ nguyên; thông tin nguồn đầu tiên vẫn là URL UCI. Xem [p2-validation.json](../examples/pb02/p2-validation.json). Manifest mẫu và raw thật không bị sửa; trạng thái tiếp tục **In review**.

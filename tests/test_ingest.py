@@ -6,6 +6,7 @@ import io
 import json
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from http.client import IncompleteRead
 from pathlib import Path
 
@@ -209,6 +210,172 @@ def test_locked_version_tampering_is_not_overwritten(package, tmp_path, tamper):
     assert len(list(raw.iterdir())) == 1
     if tamper == "csv":
         assert path.read_bytes() == b"changed"
+
+
+@pytest.mark.parametrize("field", ["source", "downloaded_at", "package"])
+def test_locked_manifest_requires_provenance(package, tmp_path, field):
+    source = package()
+    raw = tmp_path / "raw"
+    first = ingest_package(source, raw_dir=raw)
+    manifest = read_manifest(first)
+    del manifest[field]
+    first.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    snapshot = {
+        path.name: (path.read_bytes(), path.stat().st_mtime_ns)
+        for path in first.manifest_path.parent.iterdir()
+    }
+    with pytest.raises(IngestError, match=field):
+        ingest_package(source, raw_dir=raw)
+    assert list(raw.iterdir()) == [first.manifest_path.parent]
+    assert snapshot == {
+        path.name: (path.read_bytes(), path.stat().st_mtime_ns)
+        for path in first.manifest_path.parent.iterdir()
+    }
+
+
+@pytest.mark.parametrize("field", [
+    "source.kind", "source.location", "source.resolved_url", "source.url",
+    "package.bytes", "package.sha256",
+])
+def test_locked_manifest_requires_nested_provenance(package, tmp_path, field):
+    source = package()
+    raw = tmp_path / "raw"
+    first = ingest_package(source, raw_dir=raw)
+    manifest = read_manifest(first)
+    parent, key = field.split(".")
+    del manifest[parent][key]
+    first.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    before = first.manifest_path.read_bytes()
+    with pytest.raises(IngestError, match=field):
+        ingest_package(source, raw_dir=raw)
+    assert first.manifest_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("field,value", [
+    ("source", None), ("source", []),
+    ("source.kind", None), ("source.kind", "ftp"),
+    ("source.location", None), ("source.location", ""),
+    ("source.location", "relative.zip"), ("source.location", "file:relative.zip"),
+    ("source.resolved_url", "https://example.org/invalid-for-local.zip"),
+    ("source.url", ""), ("source.url", "https:///missing-host.zip"),
+    ("source.url", 123), ("source.url", "https://[invalid"),
+    ("downloaded_at", None), ("downloaded_at", 123),
+    ("downloaded_at", ""), ("downloaded_at", "2026-02-30T00:00:00+00:00"),
+    ("downloaded_at", "2026-10-24T00:00:00"),
+    ("downloaded_at", "2026-10-24T00:00:00+07:00"),
+    ("package", None), ("package", []),
+    ("package.bytes", 0), ("package.bytes", -1),
+    ("package.bytes", True), ("package.bytes", 1.5), ("package.bytes", "123"),
+    ("package.sha256", None), ("package.sha256", ""),
+    ("package.sha256", "g" * 64), ("package.sha256", "a" * 63),
+])
+def test_locked_manifest_rejects_invalid_provenance(package, tmp_path, field, value):
+    source = package()
+    raw = tmp_path / "raw"
+    first = ingest_package(source, raw_dir=raw)
+    manifest = read_manifest(first)
+    parent, _, key = field.partition(".")
+    if key:
+        manifest[parent][key] = value
+    else:
+        manifest[parent] = value
+    first.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    before = first.manifest_path.read_bytes()
+    with pytest.raises(IngestError, match=field):
+        ingest_package(source, raw_dir=raw)
+    assert first.manifest_path.read_bytes() == before
+    assert len(list(raw.iterdir())) == 1
+
+
+@pytest.mark.parametrize("field", ["location", "resolved_url", "url"])
+def test_locked_url_receipt_requires_http_urls(package, tmp_path, field):
+    source = package()
+    raw = tmp_path / "raw"
+    first = ingest_package(source, raw_dir=raw)
+    manifest = read_manifest(first)
+    manifest["source"] = {
+        "kind": "url", "location": "https://example.org/source.zip",
+        "resolved_url": "https://example.org/redirect.zip",
+        "url": "https://example.org/source.zip",
+    }
+    manifest["source"][field] = None
+    first.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(IngestError, match=f"source.{field}"):
+        ingest_package(source, raw_dir=raw)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("base", False), ("base", 0.0), ("materialized_in_raw", 0),
+])
+def test_locked_manifest_rejects_nested_schema_type_changes(package, tmp_path, field, value):
+    source = package()
+    raw = tmp_path / "raw"
+    first = ingest_package(source, raw_dir=raw)
+    manifest = read_manifest(first)
+    manifest["csv"]["raw_row_id"][field] = value
+    first.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(IngestError, match="csv"):
+        ingest_package(source, raw_dir=raw)
+
+
+@pytest.mark.parametrize("original_kind", ["local", "url"])
+def test_reimport_keeps_original_receipt_when_source_and_zip_change(
+    package, tmp_path, monkeypatch, original_kind
+):
+    original = package()
+    contents = original.read_bytes()
+
+    def response(*args, **kwargs):
+        stream = io.BytesIO(contents)
+        stream.status = 200
+        stream.headers = {"Content-Length": str(len(contents))}
+        stream.geturl = lambda: "https://example.org/redirect.zip"
+        return stream
+
+    class OriginalTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(module, "urlopen", response)
+    raw = tmp_path / "raw"
+    with monkeypatch.context() as clock:
+        clock.setattr(module, "datetime", OriginalTime)
+        first = ingest_package(
+            original if original_kind == "local" else "https://example.org/original.zip",
+            raw_dir=raw,
+        )
+    before = first.manifest_path.read_bytes()
+    repacked = package(name="repacked.zip", extra={"README.txt": "new ZIP packaging"})
+    contents = repacked.read_bytes()
+    assert read_manifest(first)["package"]["bytes"] != len(contents)
+    second = ingest_package(
+        "https://example.org/new-source.zip" if original_kind == "local" else repacked,
+        raw_dir=raw, source_url="https://example.org/new-origin.zip",
+    )
+    assert second.reused is True
+    assert second.dataset_version == first.dataset_version
+    assert second.manifest_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("field", ["source", "downloaded_at", "package"])
+def test_cli_rejects_missing_locked_provenance(
+    package, config_values, write_config, tmp_path, capsys, field
+):
+    config = write_config(config_values)
+    source = package()
+    arguments = ["ingest", "--config", str(config), "--source", str(source)]
+    assert main(arguments) == 0
+    manifest_path = Path(json.loads(capsys.readouterr().out)["manifest"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest[field]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        main(arguments)
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert not captured.out
+    assert field in captured.err and "Traceback" not in captured.err
 
 
 def test_matching_reference_does_not_request_checksum_audit(package, tmp_path, monkeypatch):

@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-24",
+  "base_commit": "ff662ae",
+  "finding": "P2: locked manifest reuse accepted missing provenance metadata",
+  "regression_before_fix": {
+    "missing_fields": ["source", "downloaded_at", "package"],
+    "failed_tests": 3,
+    "failure": "DID NOT RAISE IngestError"
+  },
+  "verification_after_fix": {
+    "automated_tests_passed": 174,
+    "automated_tests_failed": 0,
+    "pytest_warnings": 0,
+    "pip_check": "No broken requirements found",
+    "git_diff_check": "passed"
+  },
+  "real_data_reimport_after_fix": {
+    "reused": true,
+    "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+    "raw_bytes_and_mtimes_unchanged": true,
+    "manifest_source_kind_preserved": "url",
+    "input_kind": "local_repackaged_zip",
+    "raw_version_count": 1
+  }
+}

@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 import zlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.client import HTTPException
 from pathlib import Path, PurePosixPath
 from urllib.error import URLError
@@ -165,6 +165,63 @@ def _inspect_pdf(path: Path) -> None:
             raise IngestError("PDF: missing EOF marker (possibly truncated)")
 
 
+def _manifest_fields(value: object, fields: set[str], prefix: str = "") -> None:
+    if not isinstance(value, dict):
+        raise IngestError(f"raw manifest: {prefix or 'root'} must be an object")
+    for field in sorted(fields - value.keys()):
+        raise IngestError(f"raw manifest: missing {prefix}{field}")
+    for field in sorted(value.keys() - fields):
+        raise IngestError(f"raw manifest: unknown field {prefix}{field}")
+
+
+def _is_http_url(value: object) -> bool:
+    if not isinstance(value, str) or any(char.isspace() for char in value):
+        return False
+    try:
+        parsed = urlparse(value)
+        return parsed.scheme in ("http", "https") and bool(parsed.hostname)
+    except ValueError:
+        return False
+
+
+def _validate_provenance(manifest: dict) -> None:
+    """Validate original receipt metadata without comparing it to a new receipt."""
+    source = manifest["source"]
+    _manifest_fields(source, {"kind", "location", "resolved_url", "url"}, "source.")
+    if source["kind"] not in ("local", "url"):
+        raise IngestError("raw manifest: source.kind must be local or url")
+    if source["kind"] == "url":
+        for field in ("location", "resolved_url", "url"):
+            if not _is_http_url(source[field]):
+                raise IngestError(f"raw manifest: source.{field} must be an absolute HTTP(S) URL")
+    else:
+        location = source["location"]
+        if not isinstance(location, str):
+            raise IngestError("raw manifest: source.location must be an absolute file URI")
+        parsed = urlparse(location)
+        if parsed.scheme != "file" or not parsed.path.startswith("/"):
+            raise IngestError("raw manifest: source.location must be an absolute file URI")
+        if source["resolved_url"] is not None:
+            raise IngestError("raw manifest: source.resolved_url must be null for local input")
+        if source["url"] is not None and not _is_http_url(source["url"]):
+            raise IngestError("raw manifest: source.url must be null or an absolute HTTP(S) URL")
+    downloaded_at = manifest["downloaded_at"]
+    try:
+        if not isinstance(downloaded_at, str):
+            raise ValueError("expected a string")
+        if datetime.fromisoformat(downloaded_at).utcoffset() != timedelta(0):
+            raise ValueError("expected UTC offset")
+    except ValueError as exc:
+        raise IngestError("raw manifest: downloaded_at must be an ISO timestamp in UTC") from exc
+    package = manifest["package"]
+    _manifest_fields(package, {"bytes", "sha256"}, "package.")
+    if type(package["bytes"]) is not int or package["bytes"] <= 0:
+        raise IngestError("raw manifest: package.bytes must be a positive integer")
+    digest = package["sha256"]
+    if not isinstance(digest, str) or len(digest) != 64 or set(digest) - set("0123456789abcdef"):
+        raise IngestError("raw manifest: package.sha256 must be a lowercase SHA-256 digest")
+
+
 def _verify_locked(target: Path, expected: dict) -> None:
     manifest_path = target / "raw_manifest.json"
     if target.is_symlink() or manifest_path.is_symlink():
@@ -172,8 +229,11 @@ def _verify_locked(target: Path, expected: dict) -> None:
     actual = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(actual, dict) or type(actual.get("schema_version")) is not int:
         raise IngestError("locked raw manifest: invalid schema; refusing overwrite")
+    _manifest_fields(actual, set(expected))
+    _validate_provenance(actual)
     for field in ("schema_version", "status", "dataset_version", "files", "csv", "audit"):
-        if actual.get(field) != expected[field]:
+        # JSON comparison also rejects nested bool/int and int/float substitutions.
+        if json.dumps(actual[field], sort_keys=True) != json.dumps(expected[field], sort_keys=True):
             raise IngestError(f"locked raw manifest mismatch: {field}; refusing overwrite")
     for info in expected["files"].values():
         path = target / info["path"]
@@ -195,7 +255,7 @@ def ingest_package(
     """
     raw = Path(raw_dir).expanduser().resolve()
     try:
-        if source_url is not None and urlparse(source_url).scheme not in ("http", "https"):
+        if source_url is not None and not _is_http_url(source_url):
             raise IngestError("source_url: expected an explicit HTTP(S) provenance URL")
         raw.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix=".ingest-", dir=raw) as work:
@@ -231,6 +291,7 @@ def ingest_package(
                     "reference_csv_sha256": REFERENCE_CSV_SHA256,
                 },
             }
+            _validate_provenance(manifest)
             target = raw / version
             reused = target.exists()
             if reused:

@@ -1,0 +1,57 @@
+schema_version: 1
+
+# project_root is relative to this YAML file; other paths are relative to it.
+paths:
+  project_root: ".."
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  artifacts: artifacts
+  reports: reports
+
+dataset:
+  uci_id: 791
+  time_column: timestamp
+  timezone: null
+
+split:
+  train_end_exclusive: "2020-03-01 00:00:00"
+  validation_end_exclusive: "2020-05-01 00:00:00"
+
+features:
+  set: F35
+  window_minutes: 5
+  candidate_windows: [1, 5, 15]
+  score_stride_seconds: 60
+  closed: right
+  std_ddof: 0
+
+quality:
+  min_observed_fraction: 0.8
+  gap_multiplier: 3
+  max_ffill_age_seconds: 30
+  edge_tolerance_multiplier: 2
+  common_warmup_seconds: 930
+
+ecod:
+  implementation: paper_frozen_v1
+  aggregation: max_of_three_sums
+  tie_skewness: right
+  probability_floor: one_over_n_plus_one
+  batch_size: 4096
+
+selection:
+  primary_metric: average_precision
+  quantiles: [0.95, 0.975, 0.99, 0.995, 0.999]
+  quantile_method: higher
+  alarm_operator: greater_than
+  outside_episode_budget_per_day: 1.0
+
+alerts:
+  merge_gap_seconds: 300
+  break_on_invalid: true
+
+reproducibility:
+  seed: 42
+  stability_seeds: [42, 7, 2026]
+  n_jobs_benchmark: 1

@@ -14,6 +14,7 @@ import yaml
 
 
 CONFIG_SCHEMA_VERSION = 1
+MAX_RANDOM_SEED = 2**32 - 1
 Validator = Callable[[Any], Any]
 
 
@@ -22,7 +23,7 @@ class ConfigError(ValueError):
 
 
 class _UniqueKeySafeLoader(yaml.SafeLoader):
-    """SafeLoader with duplicate keys rejected instead of silently overwritten."""
+    """Reject duplicate keys and leave timestamps for field-aware validation."""
 
 
 def _unique_mapping(loader: _UniqueKeySafeLoader, node: Any) -> dict[str, Any]:
@@ -45,6 +46,11 @@ def _unique_mapping(loader: _UniqueKeySafeLoader, node: Any) -> dict[str, Any]:
 _UniqueKeySafeLoader.add_constructor(
     yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _unique_mapping
 )
+# PyYAML's timestamp constructor can raise ValueError before a field is known.
+# Preserve its scalar text so _timestamp reports errors through _fields instead.
+_UniqueKeySafeLoader.add_constructor(
+    "tag:yaml.org,2002:timestamp", _UniqueKeySafeLoader.construct_scalar
+)
 
 
 def _integer(value: Any, *, minimum: int) -> int:
@@ -59,6 +65,14 @@ def _positive_int(value: Any) -> int:
 
 def _nonnegative_int(value: Any) -> int:
     return _integer(value, minimum=0)
+
+
+def _seed(value: Any) -> int:
+    """Use the integer range supported by scikit-learn's RandomState seeds."""
+    value = _nonnegative_int(value)
+    if value > MAX_RANDOM_SEED:
+        raise ValueError(f"must be <= {MAX_RANDOM_SEED}")
+    return value
 
 
 def _number(value: Any) -> float:
@@ -154,7 +168,7 @@ def _timestamp(value: Any) -> str:
         else:
             raise ValueError("expected an ISO timestamp")
     except ValueError as exc:
-        raise ValueError("expected an ISO timestamp, e.g. 2020-03-01 00:00:00") from exc
+        raise ValueError(f"invalid ISO timestamp {value!r}: {exc}") from exc
     if parsed.tzinfo is not None:
         raise ValueError("must use the dataset clock without a timezone offset")
     return parsed.isoformat(sep=" ")
@@ -212,8 +226,8 @@ _SECTIONS: dict[str, dict[str, Validator]] = {
         "break_on_invalid": _fixed(True),
     },
     "reproducibility": {
-        "seed": _nonnegative_int,
-        "stability_seeds": _list_of(_nonnegative_int),
+        "seed": _seed,
+        "stability_seeds": _list_of(_seed),
         "n_jobs_benchmark": _fixed(1),
     },
 }

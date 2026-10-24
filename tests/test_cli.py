@@ -42,6 +42,35 @@ def test_invalid_config_exits_before_success(config_values, write_config, tmp_pa
     assert not (tmp_path / "artifacts").exists()
 
 
+@pytest.mark.parametrize("field", ["train_end_exclusive", "validation_end_exclusive"])
+@pytest.mark.parametrize("value", ["2020-02-30 00:00:00", "2020-03-01 25:00:00"])
+@pytest.mark.parametrize("quoted", [False, True], ids=["unquoted", "quoted"])
+def test_invalid_yaml_timestamp_reports_field(
+    write_timestamp_config, tmp_path, field, value, quoted
+):
+    source = write_timestamp_config(field, value, quoted=quoted)
+    result = run_cli("check-config", "--config", str(source), cwd=tmp_path)
+    assert result.returncode == 2
+    assert f"split.{field}" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not result.stdout
+    assert not (tmp_path / "artifacts").exists()
+
+
+@pytest.mark.parametrize("field", ["seed", "stability_seeds"])
+@pytest.mark.parametrize("seed", [-1, 4294967296])
+def test_invalid_seed_reports_field(config_values, write_config, tmp_path, field, seed):
+    config_values["reproducibility"][field] = seed if field == "seed" else [42, seed]
+    result = run_cli("check-config", "--config", str(write_config(config_values)), cwd=tmp_path)
+    assert result.returncode == 2
+    assert f"reproducibility.{field}" in result.stderr
+    if field == "stability_seeds":
+        assert "item 1" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not result.stdout
+    assert not (tmp_path / "artifacts").exists()
+
+
 @pytest.mark.parametrize("command", ["ingest", "audit", "features", "train", "validate", "freeze", "test", "report"])
 def test_unimplemented_stages_fail_instead_of_claiming_success(command, tmp_path):
     result = run_cli(command, cwd=tmp_path)

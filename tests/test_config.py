@@ -45,6 +45,8 @@ def test_base_config_matches_benchmark_defaults(config_values, write_config):
         ("selection", "outside_episode_budget_per_day", -1),
         ("alerts", "break_on_invalid", "true"),
         ("reproducibility", "seed", -1),
+        ("reproducibility", "seed", 4294967296),
+        ("reproducibility", "stability_seeds", [42, 4294967296]),
         ("reproducibility", "n_jobs_benchmark", True),
         ("paths", "raw", ""),
         ("dataset", "timezone", "Asia/Saigon"),
@@ -63,6 +65,30 @@ def test_validation_must_follow_train(config_values, write_config, end):
     config_values["split"]["validation_end_exclusive"] = end
     with pytest.raises(ConfigError, match="split.validation_end_exclusive"):
         load_config(write_config(config_values))
+
+
+@pytest.mark.parametrize("field", ["seed", "stability_seeds"])
+@pytest.mark.parametrize("seed", [0, 4294967295])
+def test_seed_boundaries_are_accepted(config_values, write_config, field, seed):
+    value = seed if field == "seed" else [seed]
+    config_values["reproducibility"][field] = value
+    config = load_config(write_config(config_values))
+    assert config.as_dict()["reproducibility"][field] == value
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("train_end_exclusive", "2020-02-29 23:59:59"),
+        ("train_end_exclusive", "2020-02-29"),
+        ("validation_end_exclusive", "2020-05-01 00:00:00"),
+    ],
+)
+def test_quoted_and_unquoted_timestamps_have_same_hash(write_timestamp_config, field, value):
+    quoted = load_config(write_timestamp_config(field, value, quoted=True))
+    unquoted = load_config(write_timestamp_config(field, value, quoted=False))
+    assert quoted.as_dict() == unquoted.as_dict()
+    assert quoted.config_hash == unquoted.config_hash
 
 
 def test_warmup_covers_largest_candidate_and_fill(config_values, write_config):

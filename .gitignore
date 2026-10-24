@@ -1,0 +1,25 @@
+# Python environments and build outputs
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Large data and generated results; keep directory markers
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+reports/*
+!reports/.gitkeep

@@ -1,15 +1,42 @@
 # MetroPT-3 — Phát hiện bất thường trên dữ liệu cảm biến
 
-Đề xuất đồ án Machine Learning & Data Mining về phát hiện bất thường
+Đồ án Machine Learning & Data Mining về phát hiện bất thường
 trên dữ liệu máy nén khí đường sắt MetroPT-3 bằng MAD, Isolation Forest và ECOD.
 
 ## Tài liệu
 
 | Tài liệu | Nội dung |
 | --- | --- |
-| [Proposal — Markdown](metropt3_proposal.md) | Bài toán, phạm vi, phương pháp và kế hoạch đánh giá. |
-| [Proposal — PDF](metropt3_proposal.pdf) | Bản trình bày để đọc, chia sẻ và nộp đề xuất. |
+| [Proposal — Markdown](docs/proposal/metropt3_proposal.md) | Bài toán, phạm vi, phương pháp và kế hoạch đánh giá. |
+| [Proposal — PDF](docs/proposal/metropt3_proposal.pdf) | Bản trình bày để đọc, chia sẻ và nộp đề xuất. |
 | [Pipeline kỹ thuật — Word](docs/metropt3_pipeline_ky_thuat.docx) | Thiết kế chi tiết từng bước, công thức, cấu hình và kiểm thử. |
+| [Product backlog](docs/product_backlog.md) | Thứ tự triển khai, phụ thuộc, tiêu chí nghiệm thu và tên branch cho từng phần. |
+| [Phân tích yêu cầu và quản lý PB](docs/requirements/README.md) | File yêu cầu riêng cho PB01–PB26, checklist nghiệm thu và bảng theo dõi công việc. |
+| [Hợp đồng cấu hình và artifact](docs/artifact_contracts.md) | Đường dẫn, config hash, schema/version, run ID và quan hệ đầu vào/đầu ra giữa các stage. |
+
+## Cài đặt và chạy PB01
+
+Yêu cầu Python từ 3.11. Từ root repo trên Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m metropt3.cli --help
+.\.venv\Scripts\python.exe -m metropt3.cli check-config --config configs/base.yaml
+```
+
+Không cần activate môi trường. Trên macOS/Linux, dùng `.venv/bin/python` thay cho `.venv\Scripts\python.exe`. Extra `pyod` chỉ dành cho đối chiếu tùy chọn; không bắt buộc cho FrozenECOD. Chốt lockfile sau smoke test pipeline ở PB12.
+
+Chạy kiểm tra:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m pip check
+```
+
+`check-config` kiểm tra [configs/base.yaml](configs/base.yaml), rồi in JSON gồm config hash và đường dẫn đã giải. Lệnh này không cần raw, không tạo run và không huấn luyện model. Config sai trả mã lỗi 2 với tên trường; ví dụ `features.window_minutes` phải là số nguyên dương, quantile thuộc `(0, 1)` và mốc validation phải sau train.
+
+`paths.project_root` được giải từ vị trí file YAML; các đường dẫn còn lại giải từ root đó. Với config mẫu, dữ liệu ở `data/raw`, `data/interim`, `data/processed`; kết quả tương lai ở `artifacts/<run_id>` và `reports/<run_id>`. Xem hợp đồng artifact để biết các tệp cần lưu. Chỉ `check-config`, help và version đã được triển khai; các stage dữ liệu/mô hình sẽ bổ sung theo backlog.
 
 ## Hướng tiếp cận
 
@@ -27,12 +54,13 @@ trên dữ liệu máy nén khí đường sắt MetroPT-3 bằng MAD, Isolation
 - [Bài báo ECOD](https://arxiv.org/abs/2201.00382)
   — phát hiện ngoại lệ bằng hàm phân phối tích lũy thực nghiệm.
 
-Tải dữ liệu từ UCI; repo chỉ lưu tài liệu đề xuất và thiết kế kỹ thuật.
+Tải dữ liệu từ UCI; repo hiện lưu tài liệu và khung PB01, chưa kèm dữ liệu thô.
 Pipeline ghi rõ các kiểm tra trên CSV gốc và những điểm metadata chưa thống nhất.
 
 ## Trạng thái
 
-Đã hoàn thành proposal và thiết kế pipeline; chưa có mã triển khai đầy đủ
-hoặc kết quả huấn luyện, so sánh mô hình trong repo.
+Đã có proposal, thiết kế pipeline và khung PB01 gồm package, config validator,
+CLI ban đầu, hợp đồng artifact và bộ kiểm tra. Chưa có kết quả huấn luyện hoặc
+so sánh mô hình; xem trạng thái review của từng PB trong bảng quản lý công việc.
 Phạm vi là phát hiện bất thường, không phải dự đoán thời điểm hỏng
 hay ước lượng tuổi thọ còn lại của thiết bị.

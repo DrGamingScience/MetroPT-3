@@ -42,10 +42,10 @@ Parse, audit, xử lý duplicate xác định được và đánh dấu chất l
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB03-AC01** (FR01, FR02): **Khi** fixture có timestamp lỗi, numeric lỗi, exact duplicate và duplicate xung đột, **thì** mỗi loại có flag/bảng/số đếm đúng; raw_row_id truy ngược được.
-- [ ] **PB03-AC02** (FR03, FR04): **Khi** fixture có delta train phổ biến 10 giây, một gap 30 và một gap 31 giây, **thì** delta0=10, gap_break=30; chỉ gap 31 tạo đoạn mới.
-- [ ] **PB03-AC03** (FR04): **Khi** thay timestamp của phần test mà giữ train, **thì** delta0 và gap_break đã fit không đổi.
-- [ ] **PB03-AC04** (FR05): **Khi** dữ liệu có giá trị cực đoan và các dòng ngày 01/09, **thì** giữ chúng nếu không vi phạm quy tắc chất lượng đã xác nhận.
+- [x] **PB03-AC01** (FR01, FR02): **Khi** fixture có timestamp lỗi, numeric lỗi, exact duplicate và duplicate xung đột, **thì** mỗi loại có flag/bảng/số đếm đúng; raw_row_id truy ngược được.
+- [x] **PB03-AC02** (FR03, FR04): **Khi** fixture có delta train phổ biến 10 giây, một gap 30 và một gap 31 giây, **thì** delta0=10, gap_break=30; chỉ gap 31 tạo đoạn mới.
+- [x] **PB03-AC03** (FR04): **Khi** thay timestamp của phần test mà giữ train, **thì** delta0 và gap_break đã fit không đổi.
+- [x] **PB03-AC04** (FR05): **Khi** dữ liệu có giá trị cực đoan và các dòng ngày 01/09, **thì** giữ chúng nếu không vi phạm quy tắc chất lượng đã xác nhận.
 
 ## Rủi ro và quyết định cần ghi nhận
 
@@ -54,4 +54,40 @@ Parse, audit, xử lý duplicate xác định được và đánh dấu chất l
 
 ## Kết quả cần xem
 
-- [ ] Cung cấp một data card có counts trước/sau và tóm tắt gap; bảng chi tiết chỉ khi cần phân tích. Kiểm tra fixture lỗi chất lượng.
+- [x] Cung cấp một data card có counts trước/sau và tóm tắt gap; bảng chi tiết chỉ khi cần phân tích. Kiểm tra fixture lỗi chất lượng.
+
+## Ghi chú thực hiện — 2026-10-25
+
+Branch: `feat/pb03-data-quality-audit`. Trạng thái **In review**; chưa merge/đóng Done hoặc tạo PR. Đã thêm [audit.py](../../src/metropt3/audit.py), lệnh `metropt3 audit`, [test_audit.py](../../tests/test_audit.py), [hướng dẫn chạy](../../README.md#audit-chất-lượng-và-chia-đoạn-pb03) và [hợp đồng cleaned](../artifact_contracts.md#cleaned-và-data-card-pb03). Không thêm dependency.
+
+| AC | Bằng chứng kiểm tra |
+| --- | --- |
+| AC01 | `test_quality_flags_duplicates_conflicts_and_raw_lineage`: flags/counts đúng, duplicate có ánh xạ đại diện, conflict giữ mọi raw row; `test_invalid_sensor_tokens_do_not_hide_conflicting_observations`: không gộp hai lỗi khác nhau thành NaN. `test_cli_real_io_parquet_metadata_and_immutable_raw` và `test_conflicting_raw_rows_survive_parquet_roundtrip` kiểm tra ghi/đọc bảng, metadata và raw nguyên byte/mtime trên ZIP synthetic. |
+| AC02 | `test_strict_gap_boundary_and_stable_timestamp_order`: delta0=10, gap_break=30, gap 30 không ngắt và 31 ngắt; thứ tự timestamp/raw_row_id ổn định. |
+| AC03 | `test_test_timestamp_and_sensor_distribution_cannot_change_train_fit`: thay timestamp/phân phối test không đổi toàn bộ cadence và thống kê sensor train. `test_exclusive_split_boundaries_and_cross_boundary_delta_not_fit`: không fit delta giao biên train. |
+| AC04 | `test_extremes_negative_pressure_and_september_1_survive`: giữ analog âm, cực đoan và 01/09. Chạy trên raw thật giữ đủ **530 dòng 2020-09-01**. |
+
+Quyết định triển khai: exact duplicate so timestamp và nguyên token sensor, bỏ index provenance; đại diện có ID nhỏ nhất. Dòng lỗi sensor được giữ với cờ và `valid=false`, timestamp lỗi/conflict được lưu riêng. Tối thiểu để fit là một delta dương từ hai timestamp train khác nhau; mode hòa chọn nhỏ nhất. `quality.gap_multiplier` phải bằng 3 khi audit. Segment không reset theo split; downstream phải xét cả hai biên. Các lựa chọn này được ghi trong data card/metadata, không suy nhịp từ validation/test.
+
+Đã chạy:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest_tmp/pb03-final -o cache_dir=.pytest_tmp/pb03-cache
+.\.venv\Scripts\python.exe -m pip check
+git diff --check
+.\.venv\Scripts\python.exe -m metropt3 audit --config configs/base.yaml --manifest data/raw/sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55/raw_manifest.json --output data/interim/pb03-verified
+```
+
+Kết quả: **197 passed** (24 test PB03); `pip check` không có dependency lỗi; `git diff --check` sạch. Các test PB03 còn kiểm tra thiếu train không fallback, định dạng timestamp tường minh, raw sai checksum/manifest, từ chối ghi đè và lỗi ghi không công bố kết quả dở.
+
+Chạy trên dữ liệu thật với CSV SHA-256 `db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24`: **1.516.948 raw → 1.516.948 cleaned/valid**, không có lỗi sensor/timestamp, duplicate hoặc conflict. Phạm vi **2020-02-01 00:00:00 → 2020-09-01 03:59:50**; **delta0=10 giây**, **gap_break=30 giây**, **331 gap / 332 segment**. Train/validation/test lần lượt **214.850 / 429.182 / 872.916 dòng**. Đây là thống kê lịch, chưa nghiệm thu mask/purge PB05.
+
+Đầu ra đầy đủ ở `data/interim/pb03-verified/` (gitignore): cleaned, gaps và data card; các bảng lỗi/duplicate không sinh vì rỗng. [Bản sao data card thực tế](../examples/pb03/data_card.md) được giữ trong repo để review. Raw/manifest PB02 không bị sửa.
+
+### Sửa P2 sau review — 2026-10-25
+
+Regex cũ chỉ kiểm tra hình dạng timestamp; pandas tự chuẩn hóa giây 60/61 sang phút tiếp theo. Khi có dòng đúng tại thời điểm sau chuẩn hóa nhưng sensor khác, hai dòng bị loại do conflict giả và dòng sai không vào issues. Regression test `test_out_of_range_clock_cannot_normalize_into_valid_row_conflict` đã tái hiện trên code cũ: **2 failed, 2 passed**, với bốn trường hợp giây 60, giây 61, phút 60 và giờ 24.
+
+Đã sửa: kiểm tra giờ trong `00–23`, phút/giây trong `00–59` bằng regex trước khi gọi `pd.to_datetime`; tính hợp lệ của ngày/tháng vẫn do parser kiểm tra. Dòng sai giữ nguyên timestamp/raw_row_id trong issues, có `invalid_timestamp=true` và `parsed_timestamp=NaT`; dòng đúng được giữ, không sinh duplicate/conflict giả.
+
+Kiểm tra sau sửa: **201 passed**; `pip check` đạt và `git diff --check` sạch. Chạy lại bằng `--output data/interim/pb03-p2-fixed-20261025` giữ nguyên **1.516.948 cleaned/valid**, **delta0=10 giây**, **gap_break=30 giây**, **331 gap / 332 segment**, đủ **530 dòng 01/09**; data card trùng byte với bản trong repo, checksum CSV/PDF raw không đổi. PB03 tiếp tục **In review**, chưa nghiệm thu/đóng Done.

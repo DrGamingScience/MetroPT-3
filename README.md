@@ -36,7 +36,7 @@ Chạy kiểm tra:
 
 `check-config` kiểm tra [configs/base.yaml](configs/base.yaml), rồi in JSON gồm config hash và đường dẫn đã giải. Lệnh này không cần raw, không tạo run và không huấn luyện model. Config sai trả mã lỗi 2 với tên trường; ví dụ `features.window_minutes` phải là số nguyên dương, quantile thuộc `(0, 1)` và mốc validation phải sau train.
 
-`paths.project_root` được giải từ vị trí file YAML; các đường dẫn còn lại giải từ root đó. Với config mẫu, dữ liệu ở `data/raw`, `data/interim`, `data/processed`; kết quả tương lai ở `artifacts/<run_id>` và `reports/<run_id>`. Xem hợp đồng artifact để biết các tệp cần lưu. Đã triển khai `check-config`, `ingest`, help và version; các stage tiếp theo sẽ bổ sung theo backlog.
+`paths.project_root` được giải từ vị trí file YAML; các đường dẫn còn lại giải từ root đó. Với config mẫu, dữ liệu ở `data/raw`, `data/interim`, `data/processed`; kết quả tương lai ở `artifacts/<run_id>` và `reports/<run_id>`. Xem hợp đồng artifact để biết các tệp cần lưu. Đã triển khai `check-config`, `ingest`, `audit`, help và version; các stage tiếp theo sẽ bổ sung theo backlog.
 
 ## Nhập và khóa dữ liệu PB02
 
@@ -53,6 +53,22 @@ Mỗi lần thành công trả JSON với đường dẫn `data/raw/sha256-<hash
 Nhập lại cùng CSV/PDF với cùng tên/thành viên ZIP chỉ xác minh và dùng lại bản đã khóa, không sửa manifest hay ngày tải đầu tiên. Checksum CSV khác bản tham chiếu vẫn được lưu thành version riêng với `audit_required: true`; cần audit PB03 trước khi dùng tiếp. Lỗi tải, gói thiếu/hỏng, header sai hoặc raw đã bị sửa trả mã 2. Nguồn local được ghi bằng URI thực; không tự suy nguồn từ tên file.
 
 Xem [hợp đồng raw](docs/artifact_contracts.md#raw-manifest-pb02) và [bằng chứng PB02](docs/requirements/PB02-data-ingestion.md).
+
+## Audit chất lượng và chia đoạn PB03
+
+Chỉ rõ manifest của version cần xử lý:
+
+```powershell
+.\.venv\Scripts\python.exe -m metropt3 audit --config configs/base.yaml --manifest data/raw/sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55/raw_manifest.json
+```
+
+Lệnh kiểm tra checksum/schema raw rồi xuất `cleaned.parquet` và `data_card.md` vào `paths.interim/pb03-audit`. Nếu thư mục đã có, dùng `--output data/interim/pb03-rerun` để tạo kết quả mới. `--output` tương đối giải từ thư mục chạy lệnh; đường dẫn mặc định giải theo config. Lỗi đầu vào, thiếu delta train hoặc lỗi ghi trả mã 2.
+
+Cleaned giữ index gốc, `raw_row_id`, timestamp không múi giờ, 15 sensor dạng số, quality flags, `valid`, `duplicate_count`, `segment_id` và split lịch. Nhịp `delta0` là mode delta dương của timestamp train trước `train_end_exclusive`; hòa chọn mode nhỏ nhất. Gap chỉ khi `delta > 3 × delta0`. Giá trị analog âm/cực đoan hợp lệ và dữ liệu ngày 01/09 được giữ.
+
+Dòng lỗi cảm biến được giữ với `valid=false`; dòng lỗi timestamp và timestamp xung đột được lưu riêng để kiểm tra. Các bảng chi tiết chỉ xuất khi có nội dung. Thống kê, nguồn raw và config thực dùng nằm trong metadata Parquet, đọc bằng `pd.read_parquet(path).attrs["audit"]`. Split ở đây chỉ là thống kê lịch; mask/purge cửa sổ thuộc PB05/PB07.
+
+Xem [hợp đồng cleaned](docs/artifact_contracts.md#cleaned-và-data-card-pb03), [nghiệm thu PB03](docs/requirements/PB03-data-quality-audit.md) và [data card dữ liệu thật](docs/examples/pb03/data_card.md).
 
 ## Hướng tiếp cận
 
@@ -75,8 +91,8 @@ Pipeline ghi rõ các kiểm tra trên CSV gốc và những điểm metadata ch
 
 ## Trạng thái
 
-Đã có proposal, thiết kế pipeline, khung PB01 và ingest PB02 gồm khóa nguồn,
-manifest/checksum/version, CLI và bộ kiểm tra. Chưa có kết quả huấn luyện hoặc
+Đã có proposal, thiết kế pipeline, khung PB01, ingest PB02 và audit PB03 gồm khóa nguồn,
+manifest/checksum/version, chất lượng dữ liệu, chia đoạn, CLI và bộ kiểm tra. Chưa có kết quả huấn luyện hoặc
 so sánh mô hình; xem trạng thái review của từng PB trong bảng quản lý công việc.
 Phạm vi là phát hiện bất thường, không phải dự đoán thời điểm hỏng
 hay ước lượng tuổi thọ còn lại của thiết bị.

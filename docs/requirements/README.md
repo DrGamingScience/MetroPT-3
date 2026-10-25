@@ -46,7 +46,7 @@ Giữ trạng thái đã ghi nhận của PB01/PB02; lần rà soát này không
 | --- | --- | --- | --- | --- | --- | --- |
 | [PB01 Khởi tạo dự án, config và hợp đồng artifact](PB01-project-scaffold.md) | P0 | In review | Codex | — | — | — |
 | [PB02 Nhập dữ liệu và khóa nguồn](PB02-data-ingestion.md) | P0 | In review | Codex | — | — | — |
-| [PB03 Audit và chia đoạn dữ liệu](PB03-data-quality-audit.md) | P0 | Todo | — | — | — | — |
+| [PB03 Audit và chia đoạn dữ liệu](PB03-data-quality-audit.md) | P0 | In review | Codex | — | — | — |
 | [PB04 Bảng sự cố và quy tắc nhãn](PB04-event-labels.md) | P0 | Todo | — | — | — | — |
 | [PB05 Temporal split và purge](PB05-temporal-splits.md) | P0 | Todo | — | — | — | — |
 | [PB06 EDA trên train](PB06-train-eda.md) | P0 | Todo | — | — | — | — |

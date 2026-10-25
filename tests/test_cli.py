@@ -71,7 +71,7 @@ def test_invalid_seed_reports_field(config_values, write_config, tmp_path, field
     assert not (tmp_path / "artifacts").exists()
 
 
-@pytest.mark.parametrize("command", ["audit", "features", "train", "validate", "freeze", "test", "report"])
+@pytest.mark.parametrize("command", ["features", "train", "validate", "freeze", "test", "report"])
 def test_unimplemented_stages_fail_instead_of_claiming_success(command, tmp_path):
     result = run_cli(command, cwd=tmp_path)
     assert result.returncode == 2

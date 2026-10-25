@@ -25,7 +25,25 @@ def main(argv: list[str] | None = None) -> int:
     ingest.add_argument("--config", type=Path, default=Path("configs/base.yaml"))
     ingest.add_argument("--source", default=OFFICIAL_PACKAGE_URL, help="Package URL or local ZIP path.")
     ingest.add_argument("--source-url", help="Explicit original URL for a local package, if known.")
+    audit = commands.add_parser("audit", help="Audit an explicit raw manifest and segment observations.")
+    audit.add_argument("--config", type=Path, default=Path("configs/base.yaml"))
+    audit.add_argument("--manifest", type=Path, required=True, help="PB02 raw_manifest.json.")
+    audit.add_argument("--output", type=Path, help="New output directory; default: paths.interim/pb03-audit.")
     args = parser.parse_args(argv)
+    # Keep check-config/ingest usable without loading the scientific stack.
+    if args.command == "audit":
+        from metropt3.audit import AuditError, audit_dataset
+
+        try:
+            config = load_config(args.config)
+            result = audit_dataset(
+                args.manifest, config=config,
+                output_dir=args.output or config.resolve_path("interim") / "pb03-audit",
+            )
+        except (ConfigError, AuditError) as exc:
+            parser.exit(2, f"metropt3: {exc}\n")
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+        return 0
     try:
         config = load_config(args.config)
         if args.command == "ingest":

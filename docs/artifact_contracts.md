@@ -53,6 +53,29 @@ CSV phải có đúng `timestamp`, 15 sensor đúng chính tả và một index 
 
 PDF được kiểm tra signature `%PDF-` và marker `%%EOF`, không phân tích ngữ nghĩa nội dung. ZIP phải có đúng một CSV và một PDF; từ chối tên đường dẫn thoát thư mục hoặc symlink. CRC kiểm tra toàn bộ thành viên trước khi xuất version.
 
+## Cleaned và data card PB03
+
+`audit --manifest <raw_manifest.json>` nhận version tường minh và xác minh checksum/file/schema PB02 trước khi đọc. Đầu ra mặc định là `paths.interim/pb03-audit`; `--output` chọn thư mục mới, không ghi đè thư mục đã có. Chỉ công bố kết quả sau khi ghi xong các bảng và data card.
+
+`cleaned.parquet` giữ cột index gốc với đúng tên, `raw_row_id` theo CSV record, `timestamp` đã parse theo `%Y-%m-%d %H:%M:%S` không timezone, 15 sensor `float64`, các cờ `invalid_timestamp`, `missing_cell`, `invalid_numeric`, `infinity`, `invalid_digital`, cột `valid`, `duplicate_count`, `segment_id`, `split`. Allowlist sensor theo PB02; index/ID/flags/split không phải feature. Numeric không parse được hoặc ô trống thành NaN; infinity giữ nguyên để phân biệt với missing, `valid=false`. Bước feature phải xét quality và kiểm tra từng ô trước khi dùng/fill.
+
+Exact duplicate so timestamp đã parse và nguyên token của 15 sensor, không so index nguồn. Giữ đại diện có `raw_row_id` nhỏ nhất; `duplicate_count` gồm cả đại diện. Không chuẩn hóa token trước khi so duplicate để tránh gộp hai lỗi khác nhau thành cùng NaN. Cùng timestamp nhưng khác token sensor là conflict: loại tất cả khỏi cleaned. Timestamp không parse được cũng bị loại khỏi cleaned. Lỗi sensor còn lại chỉ gắn cờ, không xóa dòng; không resample/fill/lọc outlier.
+
+Nhịp lấy từ timestamp đã sắp xếp, deduplicate và loại conflict, trước biên train; lỗi sensor không xóa timestamp khi fit nhịp. Cần ít nhất một delta dương (hai timestamp khác nhau), nếu không thì dừng. Mode hòa chọn nhỏ nhất; `gap_break=3×delta0`, chỉ `delta > gap_break` tăng `segment_id` từ 0. Config `quality.gap_multiplier` khác 3 bị audit từ chối để giữ quy tắc PB03. Segment không reset theo split; downstream phải xét đồng thời split và segment. `split` chưa phải mask cửa sổ PB05.
+
+`cleaned.parquet` có `attrs["audit"]` (đọc bằng pandas), gồm raw manifest/version/CSV checksum, config snapshot/hash, schema, counts trước/sau, lý do loại không chồng lặp, quality counts, thống kê delta train/toàn tệp, delta0/gap_break và quy tắc hòa, gap/segment/split. Min/median/max sensor chỉ mô tả ô hữu hạn trên raw train trước xử lý duplicate; không thay preprocessing đã fit. Phân phối sensor test không được dùng chọn mô hình/feature.
+
+`data_card.md` trình bày thống kê này cho người đọc. Thiếu ô sensor là token trống/whitespace; token NA/NaN/null không trống là invalid_numeric. Digital có domain {0, 1}. Số mốc thiếu ước lượng `sum(max(ceil(delta/delta0)-1, 0))` trên timeline cleaned được đếm riêng với thiếu ô; đây là ước lượng theo nhịp, không khẳng định có lưới timestamp đều.
+
+Bảng chi tiết chỉ ghi nếu khác rỗng:
+
+| Bảng | Nội dung |
+| --- | --- |
+| `issues.parquet` | Mọi dòng có lỗi timestamp/sensor, nguyên token và index, raw_row_id, parsed_timestamp, quality flags và timestamp_conflict. |
+| `conflicts.parquet` | Mọi raw row của timestamp xung đột, kể cả bản sao hoàn toàn trong nhóm; cùng schema bảng issues. |
+| `duplicate_rows.parquet` | Mọi thành viên nhóm exact duplicate: raw_row_id, representative_raw_row_id, duplicate_count; gồm cả nhóm bị conflict. |
+| `gaps.parquet` | Hai timestamp/raw_row_id hai phía khoảng ngắt, delta_seconds, segment_id mới và số mốc thiếu ước lượng trong gap. |
+
 ## Một thư mục cho một bộ thí nghiệm
 
 Một lần so sánh có thể chứa nhiều model/W/seed. Dùng tên thư mục dễ đọc (ví dụ `artifacts/validation-20261024/`), phân biệt cấu hình bằng `config_id` ngắn và tham số thực tế trong bảng kết quả. Không bắt buộc UUID, run ID theo hash hay một run cho mỗi hàm. Báo lỗi nếu tên đích đã có để tránh ghi đè nhầm kết quả đã báo cáo.

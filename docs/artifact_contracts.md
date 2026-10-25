@@ -55,7 +55,7 @@ PDF được kiểm tra signature `%PDF-` và marker `%%EOF`, không phân tích
 
 ## Cleaned và data card PB03
 
-`audit --manifest <raw_manifest.json>` nhận version tường minh và xác minh checksum/file/schema PB02 trước khi đọc. Đầu ra mặc định là `paths.interim/pb03-audit`; `--output` chọn thư mục mới, không ghi đè thư mục đã có. Chỉ công bố kết quả sau khi ghi xong các bảng và data card.
+`audit --manifest <raw_manifest.json>` nhận version tường minh và xác minh checksum/file/schema PB02 trước khi đọc. Đầu ra mặc định là `paths.interim/pb03-audit`; `--output` chọn thư mục mới, không ghi đè thư mục đã có. Chỉ công bố kết quả sau khi ghi xong các bảng, `events.csv` PB04 và data card.
 
 `cleaned.parquet` giữ cột index gốc với đúng tên, `raw_row_id` theo CSV record, `timestamp` đã parse theo `%Y-%m-%d %H:%M:%S` không timezone, 15 sensor `float64`, các cờ `invalid_timestamp`, `missing_cell`, `invalid_numeric`, `infinity`, `invalid_digital`, cột `valid`, `duplicate_count`, `segment_id`, `split`. Allowlist sensor theo PB02; index/ID/flags/split không phải feature. Numeric không parse được hoặc ô trống thành NaN; infinity giữ nguyên để phân biệt với missing, `valid=false`. Bước feature phải xét quality và kiểm tra từng ô trước khi dùng/fill.
 
@@ -75,6 +75,26 @@ Bảng chi tiết chỉ ghi nếu khác rỗng:
 | `conflicts.parquet` | Mọi raw row của timestamp xung đột, kể cả bản sao hoàn toàn trong nhóm; cùng schema bảng issues. |
 | `duplicate_rows.parquet` | Mọi thành viên nhóm exact duplicate: raw_row_id, representative_raw_row_id, duplicate_count; gồm cả nhóm bị conflict. |
 | `gaps.parquet` | Hai timestamp/raw_row_id hai phía khoảng ngắt, delta_seconds, segment_id mới và số mốc thiếu ước lượng trong gap. |
+
+## Bảng sự cố và nhãn PB04
+
+`events.csv` được xuất cùng bộ kết quả `audit`, gồm đúng các cột `event_id,start,end,failure_type,source,source_note,confidence_note`. `reported_events()` chép bốn khoảng E1–E4 từ bảng Failure Information của [UCI](https://archive.ics.uci.edu/dataset/791/metropt3%2Bdataset); ID cục bộ theo thứ tự dòng. Nguồn lặp Nr. #1 ở E2 và ghi `Maintenance on 30Apr at 12:00` dù khoảng sự cố ở tháng 5; bảo lưu trong ghi chú, không tự sửa mốc. File CSV dùng timestamp `%Y-%m-%d %H:%M:%S`, không timezone, khoảng đóng hai đầu và giây `00` khi nguồn chỉ có phút. `read_events`/`validate_events` kiểm tra schema, ID duy nhất, biên hợp lệ và `start <= end`.
+
+`label_timestamps(window_end, events, valid=...)` trả bảng nhãn tách khỏi sensor/feature/score: `window_end`, `valid`, `label` nullable Int8, `event_ids` là danh sách mọi sự cố khớp theo thứ tự bảng nguồn. Nhãn bằng 1 khi mốc hợp lệ thuộc ít nhất một khoảng; bằng 0 khi ngoài báo cáo; mốc invalid có label null và không tham gia metric. Input Series giữ index, mask Series lệch index bị từ chối; datetime có timezone hoặc chuỗi ngày mơ hồ bị từ chối thay vì tự chuyển đồng hồ.
+
+`reference_status(source_timestamps, events, fill_origin_timestamps=..., valid=...)` kiểm tra mọi timestamp thực dùng và các timestamp gốc của fill, kể cả nguồn ngoài biên danh nghĩa cửa sổ. Trả `source_event_ids`, `source_overlaps_event`, `is_reference`. Không dùng point label hay khoảng min/max để thay phép kiểm tra này. Window invalid không được là reference; window khai báo valid mà thiếu nguồn bị từ chối. Kiểm tra split/segment/quality thuộc PB05/PB07.
+
+`event_coverage` giữ mọi sự cố cùng `n_valid_timestamps`, `first_valid_time`, `evaluable`; không có mốc hợp lệ thì count 0, first null và evaluable false. Khi đánh giá PB11, phải truyền lưới score và common mask hợp lệ. Metadata `attrs['audit']['reported_events']` liên kết `events.csv`, nguồn, quy tắc biên và `cleaned_row_coverage` với raw manifest/version đã có; coverage này chỉ nói về dòng cleaned, không xác nhận evaluability cửa sổ tương lai. Data card giải thích cùng quy ước và ghi chú nguồn.
+
+## Lưới phút và temporal masks PB05
+
+`audit` ghi `minute_grid.parquet` cùng cleaned/events/data card, không thêm stage độc lập. Bảng giữ mọi mốc phút từ ceil(first cleaned timestamp) đến floor(last cleaned timestamp), gồm `window_start`, `window_end`, `split`, nullable `segment_id`, `block_start`, `warmup_until`, `warmup`, `temporal_valid`, `temporal_reason`. Window dùng `(t-W,t]`; warm-up chung lấy từ config, tối thiểu Wmax + max fill age. Mỗi `(split, segment_id)` reset từ quan sát thật đầu tiên. Trong gap, segment/block là null. Eligibility tại t chỉ đọc timestamp <= t; quá `gap_break` từ quan sát quá khứ gần nhất thì gap. Kiểm tra coverage/edge/internal gap của từng cửa sổ thuộc PB07.
+
+`attrs['temporal']` giữ config snapshot/hash, quy tắc biên/warm-up/reason/duration, train-fitted gap_break, raw manifest/version/CSV checksum và summary. Data card có số mốc dự kiến/đủ điều kiện/loại theo reason, thời lượng, mốc dương và số sự cố nguồn/có coverage theo split. **`temporal_valid` không phải final valid**; calendar không tự tạo reference/evaluation mask khi chưa có feature/lineage/quality. Duration = count × 60 giây (thời lượng lưới biểu diễn), không khẳng định uptime sensor. Giữ mọi event kể cả ngoài phạm vi tệp hoặc không có mốc hợp lệ.
+
+PB07 gọi `apply_window_masks` với full actual source pairs `(window_end, raw_row_id)`, full fill origin triples `(window_end, raw_row_id, target_timestamp)` và boolean quality mask cùng index grid. ID được tra trong đúng cleaned dataset; không nhận timestamp tự khai báo thay ID, ID hoặc window_end lạ bị từ chối. Raw trực tiếp và target fill phải nằm trong `(t-W,t]`; origin fill có thể ngoài cửa sổ danh nghĩa nhưng phải cùng split/segment, không sau target, tuổi <= max fill age. Caller bảo đảm đầy đủ lineage và kiểm tra quality theo sensor/feature thực dùng. Không bắt buộc lưu lineage dạng bảng ra đĩa.
+
+Kết quả finalize có `valid`, `reason`, `is_evaluation`, `is_reference`, nguồn min/max và event IDs; nhãn tại window_end là metadata riêng khỏi ma trận detector. Evaluation = valid; reference = valid AND train/validation AND không nguồn nào giao sự cố. Invalid có label null. Reason ưu tiên: gap, warmup, source_split, source_segment, future_source, outside_window, stale_fill, missing_source, quality. `quality_reason` có thể thay lý do quality bằng mô tả cụ thể của PB07. Summary chọn final mask nếu đã finalize; PB11 phải tính lại evaluability trên score timestamps/common mask thực tế.
 
 ## Một thư mục cho một bộ thí nghiệm
 

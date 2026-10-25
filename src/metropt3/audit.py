@@ -14,10 +14,14 @@ import numpy as np
 import pandas as pd
 
 from metropt3.config import ProjectConfig
+from metropt3.events import (
+    EVENT_SOURCE, TIMESTAMP_FORMAT as EVENT_TIMESTAMP_FORMAT, event_coverage, reported_events,
+)
 from metropt3.ingest import (
     DIGITAL_COLUMNS, REFERENCE_CSV_SHA256, SENSOR_COLUMNS,
     _inspect_csv, _verify_locked,
 )
+from metropt3.temporal import build_time_grid, split_timestamps, summarize_time_grid
 
 
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -153,7 +157,6 @@ def audit_rows(raw: pd.DataFrame, config: ProjectConfig) -> AuditTables:
     cleaned["duplicate_count"] = duplicate_count[keep]
     cleaned = cleaned.sort_values(["timestamp", "raw_row_id"], kind="stable").reset_index(drop=True)
     train_end = pd.Timestamp(values["split"]["train_end_exclusive"])
-    validation_end = pd.Timestamp(values["split"]["validation_end_exclusive"])
     train_times = cleaned.loc[cleaned["timestamp"] < train_end, "timestamp"]
     train_delta = train_times.diff().dt.total_seconds()
     positive = train_delta[train_delta > 0]
@@ -169,10 +172,7 @@ def audit_rows(raw: pd.DataFrame, config: ProjectConfig) -> AuditTables:
     delta = cleaned["timestamp"].diff().dt.total_seconds()
     breaks = delta > gap_break
     cleaned["segment_id"] = breaks.cumsum().astype("int64")
-    cleaned["split"] = np.where(
-        cleaned["timestamp"] < train_end, "train",
-        np.where(cleaned["timestamp"] < validation_end, "validation", "test"),
-    )
+    cleaned["split"] = split_timestamps(cleaned["timestamp"], config)
     gaps = cleaned.loc[breaks, ["raw_row_id", "timestamp", "segment_id"]].copy()
     gaps.insert(0, "previous_raw_row_id", cleaned["raw_row_id"].shift()[breaks].astype("int64"))
     gaps.insert(1, "previous_timestamp", cleaned["timestamp"].shift()[breaks])
@@ -306,6 +306,44 @@ def data_card(summary: dict) -> str:
     for name, col in s["columns"].items():
         t = col["train_finite"]
         lines.append(f"| {name} | {col['missing_cells']} | {col['invalid_numeric_cells']} | {col['infinity_cells']} | {col['invalid_digital_cells']} | {col['unique_numeric_values']} | {t['min']} / {t['median']} / {t['max']} |")
+    if "reported_events" in s:
+        lines += [
+            "", "## Reported failures — PB04", "",
+            f"[UCI company failure reports]({EVENT_SOURCE}) are transcribed in `events.csv`.",
+            "Intervals include both ends; minute-precision boundaries have seconds exactly 00. Use the original sensor clock, without timezone conversion.",
+            "E1-E4 are local IDs in source row order; the source repeats Nr. #1 for E2. Its note `Maintenance on 30Apr at 12:00` conflicts with the May interval and is preserved without shifting dates. Source and confidence notes are kept in events.csv.",
+            "Labels are separate from sensor features and scoring. Zero means outside reported events, not confirmed healthy. Reference exclusion checks all actual source timestamps, including fill origins; a zero point label is insufficient.",
+            "", "| Event | Valid cleaned rows | First valid cleaned timestamp |",
+            "| --- | ---: | --- |",
+        ]
+        for row in s["reported_events"]["cleaned_row_coverage"]:
+            lines.append(f"| {row['event_id']} | {row['n_valid_timestamps']} | {row['first_valid_time']} |")
+        lines += [
+            "", "These counts describe cleaned row availability only. PB05/PB07/PB11 must recompute event evaluability from valid scoring timestamps/common masks, retaining events with no valid point.",
+        ]
+    if "temporal_grid" in s:
+        temporal = s["temporal_grid"]
+        lines += [
+            "", "## Minute calendar and split resets — PB05", "",
+            "Every expected minute is retained in minute_grid.parquet, including gaps and warm-up.",
+            "Warm-up restarts at the first actual observation of each (split, segment_id) block. "
+            "The common warm-up is shared by all candidate windows; gap takes priority over warmup.",
+            "Counts below are TEMPORAL eligibility only, not PB07 sensor-quality/provenance validity "
+            "or PB11 scoring coverage. Reference counts remain unknown until apply_window_masks "
+            "checks complete raw/fill lineage and PB07 quality. Durations = ticks × 60 seconds, not sensor uptime.",
+            "", "| Split | Expected minutes | Temporally eligible | Excluded by reason | Eligible seconds | Positive eligible minutes | Source / eligible events |",
+            "| --- | ---: | ---: | --- | ---: | ---: | --- |",
+        ]
+        for name, part in temporal["splits"].items():
+            lines.append(
+                f"| {name} | {part['expected_ticks']} | {part['valid_ticks']} | "
+                f"{json.dumps(part['excluded_by_reason'], sort_keys=True)} | {part['valid_grid_seconds']} | "
+                f"{part['positive_ticks']} | {part['source_events']} / {part['evaluable_events']} |"
+            )
+        lines += ["", "| Event | Temporally eligible minutes | First eligible minute | Evaluable on temporal mask |",
+                  "| --- | ---: | --- | --- |"]
+        for row in temporal["event_coverage"]:
+            lines.append(f"| {row['event_id']} | {row['n_valid_timestamps']} | {row['first_valid_time']} | {row['evaluable']} |")
     lines += ["", "## Cleaned schema", "", "```json", json.dumps(s["schema"], indent=2), "```", "", "Config snapshot, raw provenance and these statistics are stored in cleaned.parquet attrs['audit']. Optional detail tables are written only when nonempty.", ""]
     return "\n".join(lines)
 
@@ -330,6 +368,30 @@ def audit_dataset(manifest_path: str | Path, *, config: ProjectConfig, output_di
             "dataset_version": manifest["dataset_version"],
             "csv_sha256": manifest["files"]["csv"]["sha256"],
         })
+        events = reported_events()
+        coverage = event_coverage(
+            tables.cleaned["timestamp"], events, valid=tables.cleaned["valid"],
+        )
+        # This is row availability, not a PB11 window-level evaluation decision.
+        coverage["first_valid_time"] = coverage["first_valid_time"].map(
+            lambda t: t.strftime(TIMESTAMP_FORMAT) if pd.notna(t) else None
+        )
+        tables.summary["reported_events"] = {
+            "path": "events.csv", "source": EVENT_SOURCE, "timezone": None,
+            "interval_closed": "both", "minute_boundary_seconds": 0,
+            "cleaned_row_coverage": coverage.to_dict(orient="records"),
+            "coverage_scope": "cleaned rows only; recompute using valid scoring timestamps for PB11",
+        }
+        grid = build_time_grid(tables.cleaned, config,
+                               gap_break_seconds=tables.summary["cadence"]["gap_break_seconds"])
+        tables.summary["temporal_grid"] = {
+            "path": "minute_grid.parquet", **summarize_time_grid(grid, events),
+        }
+        grid.attrs["temporal"].update({
+            "raw_manifest": str(manifest_path), "dataset_version": manifest["dataset_version"],
+            "csv_sha256": manifest["files"]["csv"]["sha256"],
+            "summary": tables.summary["temporal_grid"],
+        })
         # Fail before publishing if metadata is not standard JSON.
         json.dumps(tables.summary, allow_nan=False)
         tables.cleaned.attrs["audit"] = tables.summary
@@ -338,6 +400,8 @@ def audit_dataset(manifest_path: str | Path, *, config: ProjectConfig, output_di
             staging = Path(work) / "result"
             staging.mkdir()
             tables.cleaned.to_parquet(staging / "cleaned.parquet", index=False)
+            grid.to_parquet(staging / "minute_grid.parquet", index=False)
+            events.to_csv(staging / "events.csv", index=False, date_format=EVENT_TIMESTAMP_FORMAT)
             for name in ("issues", "conflicts", "duplicate_rows", "gaps"):
                 frame = getattr(tables, name)
                 if len(frame):
@@ -347,6 +411,8 @@ def audit_dataset(manifest_path: str | Path, *, config: ProjectConfig, output_di
         return {
             "status": "completed", "output": str(output),
             "data_card": str(output / "data_card.md"), "cleaned": str(output / "cleaned.parquet"),
+            "events": str(output / "events.csv"),
+            "minute_grid": str(output / "minute_grid.parquet"),
             "raw_rows": tables.summary["raw_rows"], "cleaned_rows": tables.summary["cleaned_rows"],
             "delta0_seconds": tables.summary["cadence"]["delta0_seconds"],
             "gap_break_seconds": tables.summary["cadence"]["gap_break_seconds"],

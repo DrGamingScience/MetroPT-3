@@ -1,0 +1,118 @@
+{
+  "status": "verified",
+  "date": "2026-10-25",
+  "branch": "feat/pb05-temporal-splits",
+  "output": "data/interim/pb05-verified-20261025",
+  "cleaned_rows": 1516948,
+  "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+  "csv_sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24",
+  "config_hash": "5682fdfd2397ea08bf85dd24e85921b3693b9b33012c16ffe561002b991a881b",
+  "common_warmup_seconds": 930,
+  "expected_ticks": 306960,
+  "temporally_eligible_ticks": 247909,
+  "excluded_by_reason": {
+    "gap": 54403,
+    "warmup": 4648
+  },
+  "checks": [
+    "all minute ticks retained",
+    "strict split boundaries",
+    "warmup never eligible",
+    "counts reconcile in every split",
+    "E1 validation and E2-E4 test",
+    "calendar rebuilt from saved cleaned rows matches exactly",
+    "calendar and cleaned metadata agree",
+    "dataset version preserved",
+    "calendar has no premature final valid/reference masks"
+  ],
+  "tests": {
+    "command": ".venv/Scripts/python.exe -m pytest -q",
+    "passed": 254,
+    "pip_check": "passed",
+    "git_diff_check": "passed"
+  },
+  "summary": {
+    "scope": "temporal eligibility only; not final scoring-window coverage",
+    "mask_column": "temporal_valid",
+    "splits": {
+      "train": {
+        "expected_ticks": 41760,
+        "valid_ticks": 35019,
+        "excluded_by_reason": {
+          "gap": 6247,
+          "warmup": 494
+        },
+        "expected_grid_seconds": 2505600,
+        "valid_grid_seconds": 2101140,
+        "positive_ticks": 0,
+        "reference_ticks": null,
+        "source_event_ids": [],
+        "source_events": 0,
+        "evaluable_events": 0
+      },
+      "validation": {
+        "expected_ticks": 87840,
+        "valid_ticks": 69983,
+        "excluded_by_reason": {
+          "gap": 16509,
+          "warmup": 1348
+        },
+        "expected_grid_seconds": 5270400,
+        "valid_grid_seconds": 4198980,
+        "positive_ticks": 1419,
+        "reference_ticks": null,
+        "source_event_ids": [
+          "E1"
+        ],
+        "source_events": 1,
+        "evaluable_events": 1
+      },
+      "test": {
+        "expected_ticks": 177360,
+        "valid_ticks": 142907,
+        "excluded_by_reason": {
+          "gap": 31647,
+          "warmup": 2806
+        },
+        "expected_grid_seconds": 10641600,
+        "valid_grid_seconds": 8574420,
+        "positive_ticks": 3476,
+        "reference_ticks": null,
+        "source_event_ids": [
+          "E2",
+          "E3",
+          "E4"
+        ],
+        "source_events": 3,
+        "evaluable_events": 3
+      }
+    },
+    "event_coverage": [
+      {
+        "event_id": "E1",
+        "n_valid_timestamps": 1419,
+        "evaluable": true,
+        "first_valid_time": "2020-04-18 00:00:00"
+      },
+      {
+        "event_id": "E2",
+        "n_valid_timestamps": 391,
+        "evaluable": true,
+        "first_valid_time": "2020-05-29 23:30:00"
+      },
+      {
+        "event_id": "E3",
+        "n_valid_timestamps": 2832,
+        "evaluable": true,
+        "first_valid_time": "2020-06-05 10:00:00"
+      },
+      {
+        "event_id": "E4",
+        "n_valid_timestamps": 253,
+        "evaluable": true,
+        "first_valid_time": "2020-07-15 14:30:00"
+      }
+    ]
+  },
+  "coverage_scope": "Temporal eligibility only. PB07 must supply actual complete lineage and sensor quality; PB11 recomputes final evaluability on common score timestamps."
+}

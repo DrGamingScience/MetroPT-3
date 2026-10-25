@@ -268,6 +268,10 @@ def validate_config(data: Any) -> dict[str, Any]:
         raise ConfigError("split.validation_end_exclusive: must be after train_end_exclusive")
 
     features, quality = result["features"], result["quality"]
+    if features["score_stride_seconds"] != 60:
+        raise ConfigError(
+            "features.score_stride_seconds: PB05 requires exactly 60 seconds"
+        )
     if features["window_minutes"] not in features["candidate_windows"]:
         raise ConfigError("features.window_minutes: must appear in candidate_windows")
     minimum_warmup = max(features["candidate_windows"]) * 60 + quality["max_ffill_age_seconds"]

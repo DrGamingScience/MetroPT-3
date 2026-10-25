@@ -12,6 +12,7 @@ import pytest
 from metropt3.audit import AuditError, audit_dataset, audit_rows
 from metropt3.cli import main
 from metropt3.config import load_config
+from metropt3.events import read_events, reported_events
 from metropt3.ingest import SENSOR_COLUMNS, ingest_package
 
 
@@ -189,8 +190,18 @@ def test_cli_real_io_parquet_metadata_and_immutable_raw(config, locked_raw, tmp_
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "completed"
     cleaned = pd.read_parquet(result["cleaned"])
+    grid = pd.read_parquet(result["minute_grid"])
+    assert len(grid) == 2 and not grid.temporal_valid.any()
+    assert grid.attrs["temporal"]["dataset_version"] == cleaned.attrs["audit"]["dataset_version"]
+    assert cleaned.attrs["audit"]["temporal_grid"]["mask_column"] == "temporal_valid"
     assert cleaned.attrs["audit"]["dataset_version"] == json.loads(manifest.read_text())["dataset_version"]
     assert cleaned.attrs["audit"]["config_hash"] == config.config_hash
+    pd.testing.assert_frame_equal(read_events(result["events"]), reported_events())
+    assert "label" not in cleaned and "event_ids" not in cleaned
+    event_meta = cleaned.attrs["audit"]["reported_events"]
+    assert event_meta["interval_closed"] == "both" and event_meta["timezone"] is None
+    assert len(event_meta["cleaned_row_coverage"]) == 4
+    assert not any(row["evaluable"] for row in event_meta["cleaned_row_coverage"])
     assert cleaned.attrs["audit"]["cadence"]["delta0_seconds"] == 10
     assert cleaned.raw_row_id.tolist() == [0, 1, 2, 5]
     assert cleaned[""].tolist() == ["original-index"] * 4
@@ -279,3 +290,14 @@ def test_nonstandard_gap_multiplier_is_not_silently_ignored(config_values, write
     config = load_config(write_config(config_values))
     with pytest.raises(AuditError, match="gap_multiplier.*requires 3"):
         audit_rows(frame(base_rows()), config)
+
+
+def test_events_write_failure_does_not_publish_partial_audit(config, locked_raw, tmp_path, monkeypatch):
+    manifest = locked_raw(base_rows())
+    def fail(*args, **kwargs):
+        raise OSError("events disk full")
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail)
+    with pytest.raises(AuditError, match="events disk full"):
+        audit_dataset(manifest, config=config, output_dir=tmp_path / "audit")
+    assert not (tmp_path / "audit").exists()
+    assert not list(tmp_path.glob(".audit-*"))

@@ -49,7 +49,7 @@ Giữ trạng thái đã ghi nhận của PB01/PB02; lần rà soát này không
 | [PB03 Audit và chia đoạn dữ liệu](PB03-data-quality-audit.md) | P0 | In review | Codex | — | — | — |
 | [PB04 Bảng sự cố và quy tắc nhãn](PB04-event-labels.md) | P0 | In review | Codex | — | — | — |
 | [PB05 Temporal split và purge](PB05-temporal-splits.md) | P0 | In review | Codex | — | — | — |
-| [PB06 EDA trên train](PB06-train-eda.md) | P0 | Todo | — | — | — | — |
+| [PB06 EDA trên train](PB06-train-eda.md) | P0 | In review | Codex | — | — | — |
 | [PB07 Đặc trưng cửa sổ F35 nhân quả](PB07-causal-window-features.md) | P0 | Todo | — | — | — | — |
 | [PB08 Preprocessing chỉ fit trên train](PB08-train-preprocessing.md) | P0 | Todo | — | — | — | — |
 | [PB09 Baseline MAD](PB09-mad-baseline.md) | P0 | Todo | — | — | — | — |

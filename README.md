@@ -139,6 +139,25 @@ Kết quả có `valid/reason`, `is_evaluation`, `is_reference`, `source_event_i
 
 Xem [nghiệm thu PB05](docs/requirements/PB05-temporal-splits.md), [data card thật](docs/examples/pb05/data_card.md) và [thống kê để review](docs/examples/pb05/validation.json).
 
+## EDA trên train PB06
+
+Đọc [báo cáo HTML](docs/examples/pb06/report.html) trong trình duyệt để xem đầy đủ biểu đồ,
+hoặc mở [báo cáo Markdown](docs/examples/pb06/report.md) bằng Markdown Preview trong IDE.
+Báo cáo phân tích 214.850 quan sát train hợp lệ: phân phối 7 analog, tần suất 8 digital,
+timeline theo ngày và đoạn chi tiết, tương quan Pearson/Spearman, đối chiếu analog theo trạng thái.
+
+Chạy lại từ root repo:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/pb06_train_eda.py --config configs/base.yaml --cleaned data/interim/pb05-verified-20261025/cleaned.parquet --output docs/examples/pb06
+```
+
+Thống kê dùng toàn bộ train hợp lệ trước `train_end_exclusive`; chỉ scatter lấy tối đa 300 dòng/ngày,
+seed từ config (mặc định 42). Timeline aggregate chỉ phục vụ biểu đồ, không dùng làm đầu vào feature.
+HTML nhúng sẵn ảnh; bảng số liệu ở `docs/examples/pb06/tables/`, metadata ở `provenance.json`.
+[Bằng chứng kiểm tra PB06](docs/examples/pb06/validation.json) ghi nhận chạy lại và thay toàn bộ
+sensor validation/test vẫn giữ nguyên 21 file kết quả. Script không fit model hoặc tự loại feature.
+
 ## Hướng tiếp cận
 
 1. Kiểm tra schema, timestamp, dữ liệu thiếu và các khoảng ngắt.

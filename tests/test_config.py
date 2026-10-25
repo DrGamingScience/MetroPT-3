@@ -18,6 +18,12 @@ def test_base_config_matches_benchmark_defaults(config_values, write_config):
     assert json.loads(config.canonical_json) == values
 
 
+def test_score_stride_must_match_pb05_minute_grid(config_values, write_config):
+    config_values["features"]["score_stride_seconds"] = 120
+    with pytest.raises(ConfigError, match=r"features\.score_stride_seconds: PB05 requires exactly 60 seconds"):
+        load_config(write_config(config_values))
+
+
 @pytest.mark.parametrize(
     ("section", "name", "value"),
     [

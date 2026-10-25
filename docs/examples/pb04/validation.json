@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-25",
+  "branch": "feat/pb04-event-labels",
+  "raw_manifest": "data/raw/sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55/raw_manifest.json",
+  "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+  "csv_sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24",
+  "output": "data/interim/pb04-verified-20261025",
+  "raw_unchanged_bytes_and_mtime": true,
+  "cleaned_rows": 1516948,
+  "valid_cleaned_rows": 1516948,
+  "labels_separate_from_cleaned": true,
+  "positive_cleaned_row_labels": 29954,
+  "negative_cleaned_row_labels": 1486994,
+  "cleaned_row_coverage": [
+    {
+      "event_id": "E1",
+      "n_valid_timestamps": 8657,
+      "evaluable": true,
+      "first_valid_time": "2020-04-18 00:00:01"
+    },
+    {
+      "event_id": "E2",
+      "n_valid_timestamps": 2360,
+      "evaluable": true,
+      "first_valid_time": "2020-05-29 23:30:08"
+    },
+    {
+      "event_id": "E3",
+      "n_valid_timestamps": 17315,
+      "evaluable": true,
+      "first_valid_time": "2020-06-05 10:00:04"
+    },
+    {
+      "event_id": "E4",
+      "n_valid_timestamps": 1622,
+      "evaluable": true,
+      "first_valid_time": "2020-07-15 14:30:00"
+    }
+  ],
+  "coverage_scope": "Cleaned rows only, not valid scoring windows. PB11 must recompute evaluability after PB05/PB07.",
+  "post_event_example": {
+    "window_end": "2020-04-19 00:00:00",
+    "label": 0,
+    "source_event_ids": [
+      "E1"
+    ],
+    "source_overlaps_event": true,
+    "is_reference": false
+  }
+}

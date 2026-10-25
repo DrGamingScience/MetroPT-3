@@ -42,10 +42,10 @@ EDA có thể tái lập trên train. PCA/K-Means nằm ở PB17; EDA không t�
 
 ## Tiêu chí nghiệm thu
 
-- [ ] **PB06-AC01** (FR01, FR02): **Khi** sinh báo cáo từ train đã audit, **thì** đủ nhóm hình, có đơn vị/thời gian và giải thích xử lý chất lượng/aggregate.
-- [ ] **PB06-AC02** (FR03, FR04): **Khi** có cặp tương quan cao hoặc trạng thái hiếm, **thì** ghi bằng chứng và giả thuyết, không âm thầm sửa feature/schema.
-- [ ] **PB06-AC03:** **Khi** chạy lại notebook cùng dữ liệu/seed/quy tắc, **thì** sample và thống kê nhất quán; kiểm tra trực tiếp, không cần file sample manifest.
-- [ ] **PB06-AC04** (FR01, FR05): **Khi** thay dữ liệu cảm biến test, **thì** thống kê, sample và nội dung EDA train không đổi.
+- [x] **PB06-AC01** (FR01, FR02): **Khi** sinh báo cáo từ train đã audit, **thì** đủ nhóm hình, có đơn vị/thời gian và giải thích xử lý chất lượng/aggregate.
+- [x] **PB06-AC02** (FR03, FR04): **Khi** có cặp tương quan cao hoặc trạng thái hiếm, **thì** ghi bằng chứng và giả thuyết, không âm thầm sửa feature/schema.
+- [x] **PB06-AC03:** **Khi** chạy lại notebook cùng dữ liệu/seed/quy tắc, **thì** sample và thống kê nhất quán; kiểm tra trực tiếp, không cần file sample manifest.
+- [x] **PB06-AC04** (FR01, FR05): **Khi** thay dữ liệu cảm biến test, **thì** thống kê, sample và nội dung EDA train không đổi.
 
 ## Rủi ro và quyết định cần ghi nhận
 
@@ -54,4 +54,14 @@ EDA có thể tái lập trên train. PCA/K-Means nằm ở PB17; EDA không t�
 
 ## Kết quả cần xem
 
-- [ ] Cung cấp notebook/report có code lấy mẫu, seed và nhận xét về train; không cần sample manifest hay test ảnh.
+- [x] Cung cấp notebook/report có code lấy mẫu, seed và nhận xét về train; không cần sample manifest hay test ảnh.
+
+## Bằng chứng triển khai — branch `pb06`
+
+- Báo cáo: [HTML có ảnh nhúng](../examples/pb06/report.html) hoặc [Markdown](../examples/pb06/report.md).
+- Code chạy lại: [scripts/pb06_train_eda.py](../../scripts/pb06_train_eda.py); lệnh chạy trong README và cuối báo cáo.
+- Dữ liệu: `data/interim/pb05-verified-20261025/cleaned.parquet`, train trước 01/03/2020; 214.850 dòng hợp lệ, 0 dòng train bị quality mask loại.
+- Có 9 hình và 9 bảng CSV; thống kê/tương quan dùng toàn bộ train, scatter dùng 8.400 dòng từ 28 ngày với seed 42, tối đa 300 dòng/ngày.
+- [Kiểm tra trên dữ liệu thật](../examples/pb06/validation.json): chạy lại cho 21 file kết quả giống từng byte; thay toàn bộ analog/digital và valid của 1.302.098 dòng validation/test trong bộ nhớ vẫn cho 21 file giống từng byte, gồm cả nội dung báo cáo và ảnh.
+- [Tests PB06](../../tests/test_eda.py): cô lập held-out, quality mask/giá trị âm/cột hằng, sample theo ngày có thể tái lập và từ chối split không khớp config. Toàn bộ suite: `258 passed`.
+- Đã xem các hình để kiểm tra nhãn/đơn vị và bố cục; trạng thái công việc là **In review**, chưa ghi nhận nghiệm thu của người dùng.

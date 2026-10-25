@@ -1,0 +1,93 @@
+{
+  "dataset_version": "sha256-978c4a95ef411383efe6bb86e35496d632fb23e6456b0a56973513e76c722c55",
+  "csv_sha256": "db30ccb4ea402e3c8bf2c99db06e288d4f2a772f6928f9dbe26a920d69793e24",
+  "config_hash": "5682fdfd2397ea08bf85dd24e85921b3693b9b33012c16ffe561002b991a881b",
+  "config": {
+    "alerts": {
+      "break_on_invalid": true,
+      "merge_gap_seconds": 300
+    },
+    "dataset": {
+      "time_column": "timestamp",
+      "timezone": null,
+      "uci_id": 791
+    },
+    "ecod": {
+      "aggregation": "max_of_three_sums",
+      "batch_size": 4096,
+      "implementation": "paper_frozen_v1",
+      "probability_floor": "one_over_n_plus_one",
+      "tie_skewness": "right"
+    },
+    "features": {
+      "candidate_windows": [
+        1,
+        5,
+        15
+      ],
+      "closed": "right",
+      "score_stride_seconds": 60,
+      "set": "F35",
+      "std_ddof": 0,
+      "window_minutes": 5
+    },
+    "paths": {
+      "artifacts": "artifacts",
+      "interim": "data/interim",
+      "processed": "data/processed",
+      "project_root": "..",
+      "raw": "data/raw",
+      "reports": "reports"
+    },
+    "quality": {
+      "common_warmup_seconds": 930,
+      "edge_tolerance_multiplier": 2.0,
+      "gap_multiplier": 3.0,
+      "max_ffill_age_seconds": 30,
+      "min_observed_fraction": 0.8
+    },
+    "reproducibility": {
+      "n_jobs_benchmark": 1,
+      "seed": 42,
+      "stability_seeds": [
+        42,
+        7,
+        2026
+      ]
+    },
+    "schema_version": 1,
+    "selection": {
+      "alarm_operator": "greater_than",
+      "outside_episode_budget_per_day": 1.0,
+      "primary_metric": "average_precision",
+      "quantile_method": "higher",
+      "quantiles": [
+        0.95,
+        0.975,
+        0.99,
+        0.995,
+        0.999
+      ]
+    },
+    "split": {
+      "train_end_exclusive": "2020-03-01 00:00:00",
+      "validation_end_exclusive": "2020-05-01 00:00:00"
+    }
+  },
+  "source": "data/interim/pb05-verified-20261025/cleaned.parquet",
+  "seed": 42,
+  "train_rows": 214850,
+  "sample_rows": 8400,
+  "quality_excluded": 0,
+  "versions": {
+    "python": "3.13.9",
+    "pandas": "3.1.0",
+    "numpy": "2.5.4",
+    "matplotlib": "3.11.2",
+    "seaborn": "0.13.2"
+  },
+  "code": {
+    "git_commit": "7bdc2a39ea75c54790a0c73498b5cd4b888ffd3f",
+    "dirty": true
+  }
+}
